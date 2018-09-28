@@ -3,6 +3,7 @@ import singer
 import sys
 
 from singer import metadata
+from tap_heap import manifest
 from tap_heap import s3
 from tap_heap.discover import discover_streams
 from tap_heap.sync import sync_stream
@@ -28,6 +29,9 @@ def stream_is_selected(mdata):
 def do_sync(config, catalog, state):
     LOGGER.info('Starting sync.')
 
+    bucket = config['bucket']
+    merged_manifests = manifest.generate_merged_manifests(bucket)
+
     for stream in catalog['streams']:
         stream_name = stream['tap_stream_id']
         mdata = metadata.to_map(stream['metadata'])
@@ -36,12 +40,14 @@ def do_sync(config, catalog, state):
             LOGGER.info("%s: Skipping - not selected", stream_name)
             continue
 
-        singer.write_state(state)
-        #key_properties = metadata.get(mdata, (), 'table-key-properties')
-        #singer.write_schema(stream_name, stream['schema'], key_properties)
+        manifest_table = next(m for name, m in merged_manifests.items() if name == stream_name)
+        if not manifest_table:
+            LOGGER.info("Selected table not found in manifests. Skipping")
+            continue
 
+        singer.write_state(state)
         LOGGER.info("%s: Starting sync", stream_name)
-        counter_value = sync_stream(config['bucket'], state, stream)
+        counter_value = sync_stream(bucket, state, stream, manifest_table)
         LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
 
     LOGGER.info('Done syncing.')
@@ -49,15 +55,10 @@ def do_sync(config, catalog, state):
 
 @singer.utils.handle_top_exception(LOGGER)
 def main():
-    # Setup
     args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
 
     s3.setup_aws_client(args.config)
 
-    # Parse the incoming args (what would the user provide in the StitchUI)
-    #   Bucket
-
-    # if else on discovery / sync mode
     if args.discover:
         do_discover(args.config)
     elif args.properties:
@@ -69,9 +70,6 @@ if __name__ == '__main__':
 
 
 # TODO:
-# S3 Code for assuming a role
-# Support State
-# Key Properties
-
 # Cleanup
-# Dockerfile stuff
+# S3 Code for assuming a role
+# CircleCI
