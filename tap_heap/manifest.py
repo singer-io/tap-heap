@@ -19,6 +19,7 @@ def generate_manifest_tables(manifest):
         manifest_table[table['name']] = {
             "files": set(table['files']),
             "columns": set(table['columns']),
+            "manifests": set([manifest['dump_id']]),
             "incremental": table['incremental']
         }
     return manifest_table
