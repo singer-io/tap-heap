@@ -21,7 +21,7 @@ def filter_files_to_sync(files, bucket, table_name, state):
     bookmark = singer.get_bookmark(state, table_name, 'file')
     if bookmark:
         LOGGER.info("Filtering files by bookmark %s", bookmark)
-        files = filter(lambda f: bookmark < f, files)
+        files = [f for f in files if bookmark < f]
 
     return files
 
@@ -34,7 +34,11 @@ def sync_stream(bucket, state, stream, manifest_table):
     records_streamed = 0
 
     if not manifest_table['incremental'] and files:
-        # Should we only sync the "last" file for an incremental table?
+        # Filter files so that only the newest manifest's files are synced
+        newest_manifest_id = sorted(manifest_table['manifests'])[-1]
+        files = [f for f in files if "sync_{}".format(newest_manifest_id) in f]
+
+        # Activate a version so we execute a full table sync
         message = singer.ActivateVersionMessage(stream=table_name, version=int(time.time() * 1000))
         singer.write_message(message)
 
