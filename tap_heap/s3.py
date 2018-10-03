@@ -1,15 +1,34 @@
+import backoff
 import boto3
+import botocore
 import re
 import singer
 
 LOGGER = singer.get_logger()
 
+def retry_pattern():
+    return backoff.on_exception(backoff.expo,
+                                botocore.exceptions.ClientError,
+                                max_tries=5,
+                                on_backoff=log_backoff_attempt,
+                                factor=10)
 
+
+def log_backoff_attempt(details):
+    LOGGER.info("Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
+
+
+@retry_pattern()
 def setup_aws_client(config):
-    pass
-    #boto3.setup_default_session(aws_access_key_id="", aws_secret_access_key="", aws_session_token=role['Credentials']['SessionToken'])
+    client = boto3.client('sts')
+    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'], config['role_name'])
+
+    LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
+    role = client.assume_role(RoleArn=role_arn, ExternalId=config['external_id'], RoleSessionName='TapHeap')
+    boto3.setup_default_session(aws_access_key_id=role['Credentials']['AccessKeyId'], aws_secret_access_key=role['Credentials']['SecretAccessKey'], aws_session_token=role['Credentials']['SessionToken'])
 
 
+@retry_pattern()
 def list_manifest_files_in_bucket(bucket):
     s3_client = boto3.client('s3')
 
@@ -50,6 +69,7 @@ def list_manifest_files_in_bucket(bucket):
             yield s3_object
 
 
+@retry_pattern()
 def get_file_handle(bucket, s3_path):
     s3_client = boto3.resource('s3')
 
