@@ -19,19 +19,19 @@ def generate_schema_from_avro(avro_schema):
 def translate_avro_type(avro_type):
     translated_type = ["null"]
 
-    for t in avro_type:
-        if t == "null":
+    for typ in avro_type:
+        if typ == "null":
             continue
 
-        if t in ["int", "long"]:
+        if typ in ["int", "long"]:
             translated_type.append("integer")
-        elif t in ["float", "double"]:
+        elif typ in ["float", "double"]:
             translated_type.append("number")
-        elif t == 'boolean':
+        elif typ == 'boolean':
             translated_type.append("boolean")
-        elif t in ["bytes", "string", "enum", "fixed"]:
+        elif typ in ["bytes", "string", "enum", "fixed"]:
             translated_type.append("string")
         else:
-            raise Exception("ENCOUNTED A TYPE WE CAN't TRANSLATE: " + t)
+            raise Exception("Encountered an Avro type that is not supported in JSON Schema: " + typ)
 
     return translated_type

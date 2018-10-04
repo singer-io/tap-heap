@@ -1,5 +1,3 @@
-import json
-
 from singer import metadata
 from tap_heap import manifest
 from tap_heap.schema import generate_fake_schema
@@ -10,7 +8,8 @@ def discover_streams(bucket):
     merged_manifests = manifest.generate_merged_manifests(bucket)
     for table_name, manifest_table in merged_manifests.items():
         schema = generate_fake_schema(manifest_table)
-        streams.append({'stream': table_name, 'tap_stream_id': table_name, 'schema': schema, 'metadata': load_metadata(table_name, schema)})
+        streams.append({'stream': table_name, 'tap_stream_id': table_name,
+                        'schema': schema, 'metadata': load_metadata(table_name, schema)})
 
     return streams
 
@@ -32,7 +31,7 @@ def load_metadata(table_name, schema):
 
     for field_name in schema.get('properties', {}).keys():
         if field_name in key_properties:
-           mdata = metadata.write(mdata, ('properties', field_name), 'inclusion', 'automatic')
+            mdata = metadata.write(mdata, ('properties', field_name), 'inclusion', 'automatic')
         else:
             mdata = metadata.write(mdata, ('properties', field_name), 'inclusion', 'available')
 

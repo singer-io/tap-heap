@@ -4,8 +4,6 @@ import singer
 
 from singer import metadata
 from singer import Transformer
-from singer import utils
-#from singer_encodings import csv
 from tap_heap import s3
 from tap_heap.schema import generate_schema_from_avro
 
