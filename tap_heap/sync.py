@@ -4,8 +4,6 @@ import singer
 
 from singer import metadata
 from singer import Transformer
-from singer import utils
-#from singer_encodings import csv
 from tap_heap import s3
 from tap_heap.schema import generate_schema_from_avro
 
@@ -33,17 +31,17 @@ def sync_stream(bucket, state, stream, manifest_table):
     files = filter_files_to_sync(manifest_table['files'], bucket, table_name, state)
     records_streamed = 0
 
+    version = None
     if not manifest_table['incremental'] and files:
         # Filter files so that only the newest manifest's files are synced
         newest_manifest_id = sorted(manifest_table['manifests'])[-1]
         files = [f for f in files if "sync_{}".format(newest_manifest_id) in f]
 
-        # Activate a version so we execute a full table sync
-        message = singer.ActivateVersionMessage(stream=table_name, version=int(time.time() * 1000))
-        singer.write_message(message)
+        # Set version so it can be used for an activate version message
+        version = int(time.time() * 1000)
 
     for s3_file_path in files:
-        records_streamed += sync_file(bucket, s3_file_path, stream)
+        records_streamed += sync_file(bucket, s3_file_path, stream, version)
 
         # Finished syncing a file, write a bookmark
         state = singer.write_bookmark(state, table_name, 'file', s3_file_path)
@@ -53,7 +51,7 @@ def sync_stream(bucket, state, stream, manifest_table):
     return records_streamed
 
 
-def sync_file(bucket, s3_path, stream):
+def sync_file(bucket, s3_path, stream, version=None):
     LOGGER.info('Syncing file "%s".', s3_path)
 
     table_name = stream['stream']
@@ -66,18 +64,17 @@ def sync_file(bucket, s3_path, stream):
     key_properties = metadata.get(mdata, (), 'table-key-properties')
     singer.write_schema(table_name, schema, key_properties)
 
+    # Activate a version so we execute a full table sync
+    if version is not None:
+        message = singer.ActivateVersionMessage(stream=table_name, version=version)
+        singer.write_message(message)
+
     records_synced = 0
     for row in iterator:
-        custom_columns = {
-            #s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
-            #s3.SDC_SOURCE_FILE_COLUMN: s3_path,
-        }
-        rec = {**row, **custom_columns}
-
         with Transformer() as transformer:
-            to_write = transformer.transform(rec, schema, mdata)
+            to_write = transformer.transform(row, schema, mdata)
 
-        singer.write_record(table_name, to_write)
+        singer.write_message(singer.RecordMessage(table_name, to_write, version=version))
         records_synced += 1
 
     return records_synced

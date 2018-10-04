@@ -1,6 +1,6 @@
 import json
-import singer
 import sys
+import singer
 
 from singer import metadata
 from tap_heap import manifest
@@ -66,9 +66,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-# TODO:
-# Cleanup
-# CircleCI

@@ -1,0 +1,19 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/python:3.4-jessie-browsers
+    steps:
+      - checkout
+      - run:
+          name: 'Setup'
+          command: |
+            virtualenv -p python3 ~/.virtualenvs/tap-heap
+            source ~/.virtualenvs/tap-heap/bin/activate
+            pip install .
+            pip install pylint
+      - run:
+          name: 'Pylint'
+          command: |
+            source ~/.virtualenvs/tap-heap/bin/activate
+            pylint tap_heap --disable missing-docstring,protected-access,no-else-return

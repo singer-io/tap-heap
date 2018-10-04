@@ -1,7 +1,7 @@
+import re
 import backoff
 import boto3
 import botocore
-import re
 import singer
 
 LOGGER = singer.get_logger()
@@ -15,17 +15,23 @@ def retry_pattern():
 
 
 def log_backoff_attempt(details):
-    LOGGER.info("Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
+    LOGGER.info("Error detected communicating with Amazon, triggering backoff: %d try",
+                details.get("tries"))
 
 
 @retry_pattern()
 def setup_aws_client(config):
     client = boto3.client('sts')
-    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'], config['role_name'])
+    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'],
+                                                config['role_name'])
 
     LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
-    role = client.assume_role(RoleArn=role_arn, ExternalId=config['external_id'], RoleSessionName='TapHeap')
-    boto3.setup_default_session(aws_access_key_id=role['Credentials']['AccessKeyId'], aws_secret_access_key=role['Credentials']['SecretAccessKey'], aws_session_token=role['Credentials']['SessionToken'])
+    role = client.assume_role(RoleArn=role_arn,
+                              ExternalId=config['external_id'],
+                              RoleSessionName='TapHeap')
+    boto3.setup_default_session(aws_access_key_id=role['Credentials']['AccessKeyId'],
+                                aws_secret_access_key=role['Credentials']['SecretAccessKey'],
+                                aws_session_token=role['Credentials']['SessionToken'])
 
 
 @retry_pattern()
@@ -61,7 +67,7 @@ def list_manifest_files_in_bucket(bucket):
     if s3_objects:
         LOGGER.info("Found %s files.", len(s3_objects))
     else:
-        LOGGER.warning('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
+        LOGGER.warning('Found no Manifest files for bucket "%s"', bucket)
 
     matcher = re.compile(".*.json")
     for s3_object in s3_objects:
