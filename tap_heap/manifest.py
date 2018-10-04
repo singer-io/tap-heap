@@ -35,11 +35,6 @@ def merge_manifests(merged, rest):
 
 def merge(left, right):
     merged = left
-    # for table_key in right.keys():
-    #     if type(left[table_key]) == dict and type(right[table_key]) == dict:
-    #         for key in right[table_key].keys():
-    #             if type(left[table_key][key]) == set and type(right[table_key][key]) == set:
-    #                 merged[table_key][key] = merged[table_key][key] | right[table_key][key]
 
     for table_key, table_value in right.items():
         if type(left[table_key]) == dict and type(table_value) == dict:

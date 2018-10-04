@@ -68,14 +68,8 @@ def sync_file(bucket, s3_path, stream, version=None):
 
     records_synced = 0
     for row in iterator:
-        custom_columns = {
-            #s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
-            #s3.SDC_SOURCE_FILE_COLUMN: s3_path,
-        }
-        rec = {**row, **custom_columns}
-
         with Transformer() as transformer:
-            to_write = transformer.transform(rec, schema, mdata)
+            to_write = transformer.transform(row, schema, mdata)
 
         singer.write_record(table_name, to_write, version=version)
         records_synced += 1
