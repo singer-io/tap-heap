@@ -31,17 +31,19 @@ def sync_stream(bucket, state, stream, manifest_table):
     files = filter_files_to_sync(manifest_table['files'], bucket, table_name, state)
     records_streamed = 0
 
+    version = None
     if not manifest_table['incremental'] and files:
         # Filter files so that only the newest manifest's files are synced
         newest_manifest_id = sorted(manifest_table['manifests'])[-1]
         files = [f for f in files if "sync_{}".format(newest_manifest_id) in f]
 
         # Activate a version so we execute a full table sync
-        message = singer.ActivateVersionMessage(stream=table_name, version=int(time.time() * 1000))
+        version = int(time.time() * 1000)
+        message = singer.ActivateVersionMessage(stream=table_name, version=version)
         singer.write_message(message)
 
     for s3_file_path in files:
-        records_streamed += sync_file(bucket, s3_file_path, stream)
+        records_streamed += sync_file(bucket, s3_file_path, stream, version)
 
         # Finished syncing a file, write a bookmark
         state = singer.write_bookmark(state, table_name, 'file', s3_file_path)
@@ -51,7 +53,7 @@ def sync_stream(bucket, state, stream, manifest_table):
     return records_streamed
 
 
-def sync_file(bucket, s3_path, stream):
+def sync_file(bucket, s3_path, stream, version=None):
     LOGGER.info('Syncing file "%s".', s3_path)
 
     table_name = stream['stream']
@@ -75,7 +77,7 @@ def sync_file(bucket, s3_path, stream):
         with Transformer() as transformer:
             to_write = transformer.transform(rec, schema, mdata)
 
-        singer.write_record(table_name, to_write)
+        singer.write_record(table_name, to_write, version=version)
         records_synced += 1
 
     return records_synced
