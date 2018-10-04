@@ -10,7 +10,7 @@ from tap_heap.sync import sync_stream
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ["start_date", "bucket"]#, "account_id", "external_id", "role_name"]
+REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "role_name"]
 
 def do_discover(config):
     LOGGER.info("Starting discover")
@@ -71,5 +71,4 @@ if __name__ == '__main__':
 
 # TODO:
 # Cleanup
-# S3 Code for assuming a role
 # CircleCI
