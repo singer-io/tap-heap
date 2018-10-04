@@ -37,10 +37,8 @@ def sync_stream(bucket, state, stream, manifest_table):
         newest_manifest_id = sorted(manifest_table['manifests'])[-1]
         files = [f for f in files if "sync_{}".format(newest_manifest_id) in f]
 
-        # Activate a version so we execute a full table sync
+        # Set version so it can be used for an activate version message
         version = int(time.time() * 1000)
-        message = singer.ActivateVersionMessage(stream=table_name, version=version)
-        singer.write_message(message)
 
     for s3_file_path in files:
         records_streamed += sync_file(bucket, s3_file_path, stream, version)
@@ -65,6 +63,11 @@ def sync_file(bucket, s3_path, stream, version=None):
 
     key_properties = metadata.get(mdata, (), 'table-key-properties')
     singer.write_schema(table_name, schema, key_properties)
+
+    # Activate a version so we execute a full table sync
+    if version is not None:
+        message = singer.ActivateVersionMessage(stream=table_name, version=version)
+        singer.write_message(message)
 
     records_synced = 0
     for row in iterator:
