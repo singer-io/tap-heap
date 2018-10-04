@@ -37,9 +37,9 @@ def merge(left, right):
     merged = left
 
     for table_key, table_value in right.items():
-        if type(left[table_key]) == dict and type(table_value) == dict:
+        if left.get(table_key):
             for key in table_value.keys():
-                if type(left[table_key][key]) == set and type(table_value[key]) == set:
+                if left[table_key].get(key):
                     merged[table_key][key] = merged[table_key][key] | table_value[key]
 
     return merged
