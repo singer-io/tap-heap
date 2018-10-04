@@ -71,7 +71,7 @@ def sync_file(bucket, s3_path, stream, version=None):
         with Transformer() as transformer:
             to_write = transformer.transform(row, schema, mdata)
 
-        singer.write_record(table_name, to_write, version=version)
+        singer.write_message(singer.RecordMessage(table_name, to_write, version=version))
         records_synced += 1
 
     return records_synced
