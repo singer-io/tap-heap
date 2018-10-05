@@ -13,6 +13,7 @@ setup(name='tap-heap',
           'boto3==1.4.4',
           'singer-encodings==0.0.3',
           'singer-python==5.1.5',
+          'python-snappy==0.5.3',
           'fastavro==0.21.8'
       ],
       entry_points='''
