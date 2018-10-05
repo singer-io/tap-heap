@@ -10,6 +10,8 @@ def generate_merged_manifests(bucket):
         manifest_content = json.loads(contents.read().decode('utf-8'))
         tables.append(generate_manifest_tables(manifest_content))
 
+    if not tables:
+        raise Exception('Found no Manifest files in bucket: {}/manifests'.format(bucket))
     return merge_manifests(tables[0], tables[1:])
 
 

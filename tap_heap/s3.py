@@ -65,7 +65,7 @@ def list_manifest_files_in_bucket(bucket):
         next_continuation_token = result.get('NextContinuationToken')
 
     if s3_objects:
-        LOGGER.info("Found %s files.", len(s3_objects))
+        LOGGER.info("Found %s files.", len([o for o in s3_objects if o["Key"] != "manifests/"]))
     else:
         LOGGER.warning('Found no Manifest files for bucket "%s"', bucket)
 
