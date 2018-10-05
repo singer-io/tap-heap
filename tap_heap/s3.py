@@ -22,7 +22,7 @@ def log_backoff_attempt(details):
 @retry_pattern()
 def setup_aws_client(config):
     client = boto3.client('sts')
-    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'],
+    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
                                                 config['role_name'])
 
     LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
