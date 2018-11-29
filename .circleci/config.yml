@@ -8,6 +8,7 @@ jobs:
       - run:
           name: 'Setup'
           command: |
+            sudo apt-get install -y libsnappy-dev
             virtualenv -p python3 ~/.virtualenvs/tap-heap
             source ~/.virtualenvs/tap-heap/bin/activate
             pip install .
