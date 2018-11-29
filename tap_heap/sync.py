@@ -1,4 +1,5 @@
 import time
+import re
 import fastavro
 import singer
 
@@ -9,17 +10,31 @@ from tap_heap.schema import generate_schema_from_avro
 
 LOGGER = singer.get_logger()
 
+def key_fn(key):
+    """This function ensures we sort a list of manifest files based on the 'sync_id' and 'part_id'
+    For example given a key of:
+      'sync_852/sessions/part-00000-4a06bab5-0ef3-4b21-b9af-e772fbb37b0e-c000.avro'
+
+    This function returns a tuple: (int("852"), int("00000")
+    """
+
+    matches = re.findall('([0-9]+)', key)
+    return (int(matches[0]), int(matches[1]))
+
 
 def filter_files_to_sync(files, bucket, table_name, state):
+    """Filters a set of files for the table using 2 parts of the file name and drops up to
+    the bookmark if there is a bookmark."""
     # Remove the prefixes from all the files
     path_prefix = 's3://{}/'.format(bucket)
-    files = sorted(set(map(lambda x: x.replace(path_prefix, ''), files)))
+
+    files = sorted(set(map(lambda x: x.replace(path_prefix, ''), files)), key=key_fn)
 
     # Drop files that we've already synced
     bookmark = singer.get_bookmark(state, table_name, 'file')
     if bookmark:
         LOGGER.info("Filtering files by bookmark %s", bookmark)
-        files = [f for f in files if bookmark < f]
+        files = files[files.index(bookmark)+1:]
 
     return files
 
