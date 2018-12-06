@@ -1,14 +1,22 @@
 import re
 import backoff
 import boto3
-import botocore
 import singer
+
+from botocore.credentials import (
+    AssumeRoleCredentialFetcher,
+    CredentialResolver,
+    DeferredRefreshableCredentials,
+    JSONFileCache
+)
+from botocore.exceptions import ClientError
+from botocore.session import Session
 
 LOGGER = singer.get_logger()
 
 def retry_pattern():
     return backoff.on_exception(backoff.expo,
-                                botocore.exceptions.ClientError,
+                                ClientError,
                                 max_tries=5,
                                 on_backoff=log_backoff_attempt,
                                 factor=10)

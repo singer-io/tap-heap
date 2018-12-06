@@ -10,7 +10,7 @@ setup(name='tap-heap',
       classifiers=['Programming Language :: Python :: 3 :: Only'],
       py_modules=['tap_heap'],
       install_requires=[
-          'boto3==1.4.4',
+          'boto3==1.9.57',
           'singer-encodings==0.0.3',
           'singer-python==5.1.5',
           'python-snappy==0.5.3',

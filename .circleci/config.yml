@@ -17,4 +17,4 @@ jobs:
           name: 'Pylint'
           command: |
             source ~/.virtualenvs/tap-heap/bin/activate
-            pylint tap_heap --disable missing-docstring,protected-access,no-else-return
+            pylint tap_heap --disable too-few-public-methods,missing-docstring,protected-access,no-else-return
