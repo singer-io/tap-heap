@@ -18,7 +18,6 @@ def generate_and_merge_all_manifest_contents(manifest_contents):
 
 
 def get_s3_manifest_file_contents(bucket):
-    # FIXME this is untested
     manifests = s3.list_manifest_files_in_bucket(bucket)
     for manifest in manifests:
         contents = s3.get_file_handle(bucket, manifest['Key'])
@@ -46,7 +45,11 @@ def merge_manifests(merged, rest):
 
 
 def merge(left, right):
-    # FIXME this needs to be commented
+    """This is a deep merge implementation.
+
+    It's called on manifest_table dicts with the intent of merging all of
+    them into a superset of all of their contents. The tricky part is that
+    the values need to be merged as well."""
     merged = left
 
     for table_key, table_value in right.items():
