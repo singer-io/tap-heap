@@ -60,6 +60,10 @@ def main():
     args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
 
     try:
+        # This should never succeed in production. It exists solely for
+        # development purposes where you can't actually assume the target
+        # role but can nevertheless initialize your environment such that
+        # you have access to the bucket.
         [x for x in s3.list_manifest_files_in_bucket(args.config['bucket'])]
         LOGGER.warning("Able to access manifest files without assuming role!")
     except:
