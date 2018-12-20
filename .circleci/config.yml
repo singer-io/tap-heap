@@ -2,19 +2,27 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.4-jessie-browsers
+      - image: ubuntu:16.04
     steps:
       - checkout
       - run:
-          name: 'Setup'
+          name: 'Install python 3.5.2'
           command: |
-            sudo apt-get install -y libsnappy-dev
-            virtualenv -p python3 ~/.virtualenvs/tap-heap
-            source ~/.virtualenvs/tap-heap/bin/activate
-            pip install .
-            pip install pylint
+            apt update
+            apt install --yes python3 python3-pip python3-venv
       - run:
-          name: 'Pylint'
+          name: 'Install libsnappy-dev'
+          command: |
+            apt install --yes libsnappy-dev
+      - run:
+          name: 'Setup virtualenv'
+          command: |
+            python3 -m venv ~/.virtualenvs/tap-heap
+            source ~/.virtualenvs/tap-heap/bin/activate
+            pip install -U pip setuptools
+            pip install .[dev]
+      - run:
+          name: 'Run tests'
           command: |
             source ~/.virtualenvs/tap-heap/bin/activate
-            pylint tap_heap --disable too-few-public-methods,missing-docstring,protected-access,no-else-return
+            make

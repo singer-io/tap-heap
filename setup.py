@@ -18,7 +18,8 @@ setup(name='tap-heap',
       ],
       extras_require={
           'dev': [
-              'ipdb'
+              'ipdb',
+              'pylint'
           ]
       },
       entry_points='''

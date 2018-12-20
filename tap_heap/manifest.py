@@ -4,10 +4,11 @@ from tap_heap import s3
 
 def generate_merged_manifests(bucket):
     return generate_and_merge_all_manifest_contents(
+        bucket,
         get_s3_manifest_file_contents(bucket))
 
 
-def generate_and_merge_all_manifest_contents(manifest_contents):
+def generate_and_merge_all_manifest_contents(bucket, manifest_contents):
     tables = []
     for manifest_content in manifest_contents:
         tables.append(generate_manifest_tables(manifest_content))

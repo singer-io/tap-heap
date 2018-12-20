@@ -1,8 +1,11 @@
 import json
 import sys
-import singer
 
+import botocore
+
+import singer
 from singer import metadata
+
 from tap_heap import manifest
 from tap_heap import s3
 from tap_heap.discover import discover_streams
@@ -64,9 +67,14 @@ def main():
         # development purposes where you can't actually assume the target
         # role but can nevertheless initialize your environment such that
         # you have access to the bucket.
+        #
+        # We disable expression-not-assigned because we're using this to
+        # duck type whether we have access to the bucket or not.
+        #
+        # pylint: disable=expression-not-assigned
         [x for x in s3.list_manifest_files_in_bucket(args.config['bucket'])]
         LOGGER.warning("Able to access manifest files without assuming role!")
-    except:
+    except botocore.exceptions.ClientError:
         s3.setup_aws_client(args.config)
 
     if args.discover:
