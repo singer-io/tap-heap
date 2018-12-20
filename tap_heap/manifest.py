@@ -3,16 +3,25 @@ import json
 from tap_heap import s3
 
 def generate_merged_manifests(bucket):
+    return generate_and_merge_all_manifest_contents(
+        get_s3_manifest_file_contents(bucket))
+
+
+def generate_and_merge_all_manifest_contents(manifest_contents):
     tables = []
-    manifests = s3.list_manifest_files_in_bucket(bucket)
-    for manifest in manifests:
-        contents = s3.get_file_handle(bucket, manifest['Key'])
-        manifest_content = json.loads(contents.read().decode('utf-8'))
+    for manifest_content in manifest_contents:
         tables.append(generate_manifest_tables(manifest_content))
 
     if not tables:
         raise Exception('Found no Manifest files in bucket: {}/manifests'.format(bucket))
     return merge_manifests(tables[0], tables[1:])
+
+
+def get_s3_manifest_file_contents(bucket):
+    manifests = s3.list_manifest_files_in_bucket(bucket)
+    for manifest in manifests:
+        contents = s3.get_file_handle(bucket, manifest['Key'])
+        yield json.loads(contents.read().decode('utf-8'))
 
 
 def generate_manifest_tables(manifest):
@@ -43,5 +52,7 @@ def merge(left, right):
             for key in table_value.keys():
                 if left[table_key].get(key):
                     merged[table_key][key] = merged[table_key][key] | table_value[key]
+        else:
+            merged[table_key] = right[table_key]
 
     return merged

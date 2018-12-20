@@ -16,6 +16,11 @@ setup(name='tap-heap',
           'python-snappy==0.5.3',
           'fastavro==0.21.8'
       ],
+      extras_require={
+          'dev': [
+              'ipdb'
+          ]
+      },
       entry_points='''
           [console_scripts]
           tap-heap=tap_heap:main
