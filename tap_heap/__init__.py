@@ -18,6 +18,8 @@ def do_discover(config):
     if not streams:
         raise Exception("No streams found")
     catalog = {"streams": streams}
+    for stream in streams:
+        LOGGER.info('Found stream %s', stream['tap_stream_id'])
     json.dump(catalog, sys.stdout, indent=2)
     LOGGER.info("Finished discover")
 
@@ -57,7 +59,11 @@ def do_sync(config, catalog, state):
 def main():
     args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
 
-    s3.setup_aws_client(args.config)
+    try:
+        [x for x in s3.list_manifest_files_in_bucket(args.config['bucket'])]
+        LOGGER.warning("Able to access manifest files without assuming role!")
+    except:
+        s3.setup_aws_client(args.config)
 
     if args.discover:
         do_discover(args.config)
