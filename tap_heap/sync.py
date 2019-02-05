@@ -56,7 +56,9 @@ def sync_stream(bucket, state, stream, manifest_table):
         version = int(time.time() * 1000)
 
     for s3_file_path in files:
-        records_streamed += sync_file(bucket, s3_file_path, stream, version)
+        file_records_streamed = sync_file(bucket, s3_file_path, stream, version)
+        records_streamed += file_records_streamed
+        LOGGER.info('Wrote %d records for file %s', file_records_streamed, s3_file_path)
 
         # Finished syncing a file, write a bookmark
         state = singer.write_bookmark(state, table_name, 'file', s3_file_path)
@@ -85,11 +87,10 @@ def sync_file(bucket, s3_path, stream, version=None):
         singer.write_message(message)
 
     records_synced = 0
-    for row in iterator:
-        with Transformer() as transformer:
-            to_write = transformer.transform(row, schema, mdata)
-
-        singer.write_message(singer.RecordMessage(table_name, to_write, version=version))
-        records_synced += 1
+    with Transformer() as transformer:
+        for row in iterator:
+            to_write = transformer.filter_data_by_metadata(row, mdata)
+            singer.write_message(singer.RecordMessage(table_name, to_write, version=version))
+            records_synced += 1
 
     return records_synced
