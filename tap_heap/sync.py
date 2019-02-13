@@ -55,6 +55,8 @@ def sync_stream(bucket, state, stream, manifest_table):
         # Set version so it can be used for an activate version message
         version = int(time.time() * 1000)
 
+        LOGGER.info('Detected full sync, setting version to %d', version)
+
     for s3_file_path in files:
         file_records_streamed = sync_file(bucket, s3_file_path, stream, version)
         records_streamed += file_records_streamed
@@ -83,6 +85,7 @@ def sync_file(bucket, s3_path, stream, version=None):
 
     # Activate a version so we execute a full table sync
     if version is not None:
+        LOGGER.info('Sending Activate Version Message with version %d', version)
         message = singer.ActivateVersionMessage(stream=table_name, version=version)
         singer.write_message(message)
 
