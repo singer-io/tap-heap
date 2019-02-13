@@ -1,5 +1,8 @@
 # Changelog
 
+# 1.0.1
+  * Add logging around Activate Version Messages
+
 # 1.0.0
   * Release as open beta
 
