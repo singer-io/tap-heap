@@ -2,14 +2,16 @@ from singer import metadata
 from tap_heap import manifest
 from tap_heap.schema import generate_fake_schema
 
-def discover_streams(bucket):
+def discover_streams(bucket, selected-by-default=False):
     streams = []
 
     merged_manifests = manifest.generate_merged_manifests(bucket)
     for table_name, manifest_table in merged_manifests.items():
         schema = generate_fake_schema(manifest_table)
-        streams.append({'stream': table_name, 'tap_stream_id': table_name,
-                        'schema': schema, 'metadata': load_metadata(table_name, schema)})
+        streams.append({'stream': table_name,
+                        'tap_stream_id': table_name,
+                        'schema': schema,
+                        'metadata': load_metadata(table_name, schema, selected-by-default)})
 
     return streams
 
@@ -23,7 +25,7 @@ def get_key_properties(table_name):
         return ['event_id']
 
 
-def load_metadata(table_name, schema):
+def load_metadata(table_name, schema, selected-by-default=False):
     mdata = metadata.new()
 
     key_properties = get_key_properties(table_name)
@@ -34,5 +36,10 @@ def load_metadata(table_name, schema):
             mdata = metadata.write(mdata, ('properties', field_name), 'inclusion', 'automatic')
         else:
             mdata = metadata.write(mdata, ('properties', field_name), 'inclusion', 'available')
+            if selected-by-default:
+                mdata = metadata.write(mdata,
+                                       ('properties', field_name),
+                                       'selected-by-default',
+                                       'true')
 
     return metadata.to_list(mdata)
