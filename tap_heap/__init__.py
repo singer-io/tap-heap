@@ -33,11 +33,11 @@ def stream_is_selected(mdata):
 
 def convert_selected_by_default_metadata(catalog):
     for stream in catalog.streams:
-        for md in stream.metadata:
-            is_selected = md.get('metadata',{}).get('selected')
-            is_selected_by_default = md.get('metadata',{}).get('selected-by-default', False)
+        for med in stream.metadata:
+            is_selected = med.get('metadata', {}).get('selected')
+            is_selected_by_default = med.get('metadata', {}).get('selected-by-default', False)
             if is_selected_by_default and is_selected is None:
-                md['metadata']['selected'] = True
+                med['metadata']['selected'] = True
 
 
 def do_sync(config, catalog, state):
