@@ -7,5 +7,5 @@ check_prereqs:
 	bash -c 'dpkg -l libsnappy-dev >/dev/null 2>&1'
 
 test: check_prereqs
-	pylint tap_heap --disable too-few-public-methods,missing-docstring,protected-access,no-else-return
+	pylint tap_heap --disable too-few-public-methods,missing-docstring,protected-access
 	python -m unittest discover
