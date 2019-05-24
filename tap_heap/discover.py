@@ -19,10 +19,9 @@ def discover_streams(bucket, selected_by_default=False):
 def get_key_properties(table_name):
     if table_name == 'user_migrations':
         return ['from_user_id']
-    elif table_name == 'users':
+    if table_name == 'users':
         return ['user_id']
-    else:
-        return ['event_id']
+    return ['event_id']
 
 
 def load_metadata(table_name, schema, selected_by_default=False):
