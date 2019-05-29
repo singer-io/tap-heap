@@ -12,7 +12,7 @@ setup(name='tap-heap',
       install_requires=[
           'boto3==1.9.57',
           'singer-encodings==0.0.3',
-          'singer-python==5.1.5',
+          'singer-python==5.5.1',
           'python-snappy==0.5.3',
           'fastavro==0.21.8'
       ],
