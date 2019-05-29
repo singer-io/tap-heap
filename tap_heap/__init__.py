@@ -17,7 +17,8 @@ REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "ro
 
 def do_discover(config):
     LOGGER.info("Starting discover")
-    streams = discover_streams(config['bucket'], config.get('selected-by-default', False))
+
+    streams = discover_streams(config['bucket'], config.get('selected_by_default', False))
     if not streams:
         raise Exception("No streams found")
     catalog = {"streams": streams}

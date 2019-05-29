@@ -29,6 +29,8 @@ def load_metadata(table_name, schema, selected_by_default=False):
 
     key_properties = get_key_properties(table_name)
     mdata = metadata.write(mdata, (), 'table-key-properties', key_properties)
+    if selected_by_default:
+        mdata = metadata.write(mdata, (), 'selected-by-default', True)
 
     for field_name in schema.get('properties', {}).keys():
         if field_name in key_properties:
@@ -39,6 +41,6 @@ def load_metadata(table_name, schema, selected_by_default=False):
                 mdata = metadata.write(mdata,
                                        ('properties', field_name),
                                        'selected-by-default',
-                                       'true')
+                                       True)
 
     return metadata.to_list(mdata)
