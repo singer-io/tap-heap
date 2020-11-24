@@ -55,7 +55,7 @@ def sync_stream(bucket, state, stream, manifest_table):
         # Set version so it can be used for an activate version message
         version = int(time.time() * 1000)
 
-        LOGGER.info('Detected full sync, setting version to %d', version)
+        LOGGER.info('Detected full sync for stream table name %s, dump_id / manifest %s, files %s, because incremental set to %s, setting version to %d', table_name, newest_manifest_id, files, manifest_table['incremental'], version)
 
     for s3_file_path in files:
         file_records_streamed = sync_file(bucket, s3_file_path, stream, version)
