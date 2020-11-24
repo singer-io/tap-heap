@@ -1,5 +1,8 @@
 # Changelog
 
+# 1.0.2
+  * Add logging of the dump id / manifest id, files, and incremental value when full sync is requested based on heap's documentation of incremental [#9](https://github.com/singer-io/tap-heap/pull/9)
+
 # 1.0.1
   * Add logging around Activate Version Messages
 
