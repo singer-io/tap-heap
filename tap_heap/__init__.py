@@ -17,7 +17,8 @@ REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "ro
 
 def do_discover(config):
     LOGGER.info("Starting discover")
-    streams = discover_streams(config['bucket'])
+
+    streams = discover_streams(config['bucket'], config.get('selected_by_default', False))
     if not streams:
         raise Exception("No streams found")
     catalog = {"streams": streams}
@@ -31,11 +32,23 @@ def stream_is_selected(mdata):
     return mdata.get((), {}).get('selected', False)
 
 
+def convert_selected_by_default_metadata(catalog):
+    for stream in catalog['streams']:
+        for med in stream.get('metadata'):
+            is_selected = med.get('metadata', {}).get('selected')
+            is_selected_by_default = med.get('metadata', {}).get('selected-by-default', False)
+            if is_selected_by_default and is_selected is None:
+                med['metadata']['selected'] = True
+
+
 def do_sync(config, catalog, state):
     LOGGER.info('Starting sync.')
 
     bucket = config['bucket']
     merged_manifests = manifest.generate_merged_manifests(bucket)
+
+    # Convert all selected-by-default metadata into selected: True
+    convert_selected_by_default_metadata(catalog)
 
     for stream in catalog['streams']:
         stream_name = stream['tap_stream_id']
