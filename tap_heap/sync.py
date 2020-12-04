@@ -15,14 +15,15 @@ def filter_manifests_to_sync(manifests, table_name, state):
 
     bookmark = singer.get_bookmark(state, table_name, 'file')
     # bookmark = "sync_{DUMP_ID}/{TABLE_NAME}/part-00016-{GUID}.avro"
-    if bookmark:
+    bookmarked_version = singer.get_bookmark(state, table_name, 'version')
+    if bookmark and bookmarked_version:
         bookmarked_dump_id = int(bookmark.split('/')[0].replace('sync_', ''))
 
     full_table_dumps = [dump_id for dump_id, manifest in manifests.items()
                         if manifest.get(table_name, {}).get('incremental') is False]
     last_full_table_dump = max(full_table_dumps)
 
-    if bookmark:
+    if bookmark and bookmarked_version:
         minimum_dump_id_to_sync = max(last_full_table_dump, bookmarked_dump_id)
         should_create_new_version = minimum_dump_id_to_sync != bookmarked_dump_id
     else:
