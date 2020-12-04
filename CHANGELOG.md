@@ -1,5 +1,8 @@
 # Changelog
 
+# 1.1.2
+  * Handle case where there are no `incremental=false` dumps [#14](https://github.com/singer-io/tap-heap/pull/14)
+
 # 1.1.1
   * Check for a version bookmark and if it is not present then do a full table resync [#12](https://github.com/singer-io/tap-heap/pull/12)
 
