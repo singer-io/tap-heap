@@ -1,5 +1,8 @@
 # Changelog
 
+# 1.1.0
+  * Updated how we read manifest files and how we choose what files to sync. Added a version bookmark and tests. [#11](https://github.com/singer-io/tap-heap/pull/11)
+
 # 1.0.2
   * Add logging of the dump id / manifest id, files, and incremental value when full sync is requested based on heap's documentation of incremental [#9](https://github.com/singer-io/tap-heap/pull/9)
 
