@@ -45,13 +45,14 @@ def remove_prefix(file_name, bucket):
 
 def get_files_to_sync(table_manifests, table_name, state, bucket):
     bookmark = singer.get_bookmark(state, table_name, 'file')
+    bookmarked_version = singer.get_bookmark(state, table_name, 'version')
 
     # Get flattened file names and remove the prefix
     files = sorted([remove_prefix(file_name, bucket)
                     for manifest in table_manifests.values()
                     for file_name in manifest['files']])
 
-    if bookmark:
+    if bookmark and bookmarked_version:
         #NB> The bookmark is a fully synced file, so start immediately
         #after the bookmark
         files = files[files.index(bookmark)+1:]
