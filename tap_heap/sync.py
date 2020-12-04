@@ -15,14 +15,15 @@ def filter_manifests_to_sync(manifests, table_name, state):
 
     bookmark = singer.get_bookmark(state, table_name, 'file')
     # bookmark = "sync_{DUMP_ID}/{TABLE_NAME}/part-00016-{GUID}.avro"
-    if bookmark:
+    bookmarked_version = singer.get_bookmark(state, table_name, 'version')
+    if bookmark and bookmarked_version:
         bookmarked_dump_id = int(bookmark.split('/')[0].replace('sync_', ''))
 
     full_table_dumps = [dump_id for dump_id, manifest in manifests.items()
                         if manifest.get(table_name, {}).get('incremental') is False]
     last_full_table_dump = max(full_table_dumps)
 
-    if bookmark:
+    if bookmark and bookmarked_version:
         minimum_dump_id_to_sync = max(last_full_table_dump, bookmarked_dump_id)
         should_create_new_version = minimum_dump_id_to_sync != bookmarked_dump_id
     else:
@@ -44,13 +45,14 @@ def remove_prefix(file_name, bucket):
 
 def get_files_to_sync(table_manifests, table_name, state, bucket):
     bookmark = singer.get_bookmark(state, table_name, 'file')
+    bookmarked_version = singer.get_bookmark(state, table_name, 'version')
 
     # Get flattened file names and remove the prefix
     files = sorted([remove_prefix(file_name, bucket)
                     for manifest in table_manifests.values()
                     for file_name in manifest['files']])
 
-    if bookmark:
+    if bookmark and bookmarked_version:
         #NB> The bookmark is a fully synced file, so start immediately
         #after the bookmark
         files = files[files.index(bookmark)+1:]
