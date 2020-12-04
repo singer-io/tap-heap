@@ -1,7 +1,7 @@
+from collections import defaultdict
 from singer import metadata
 from tap_heap import manifest
 from tap_heap.schema import generate_fake_schema
-from collections import defaultdict
 
 def discover_streams(bucket):
     streams = []

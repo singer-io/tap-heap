@@ -11,7 +11,10 @@ def get_s3_manifest_file_contents(bucket):
 def generate_manifests(bucket):
     # NB> We drop the `property_definitions` because we don't need it
     # This will generate our manifests in the structure:
-    # manifests[dump_id][table_name] = {"files" ["file 1"], "incremental": True, "columns": ["column_1"]}
+    # manifests[dump_id][table_name] =
+    #   {"files" ["file 1"],
+    #    "incremental": True,
+    #    "columns": ["column_1"]}
     manifests = {manifest['dump_id']: {table['name']: table for table in manifest['tables']}
                  for manifest in get_s3_manifest_file_contents(bucket)}
 

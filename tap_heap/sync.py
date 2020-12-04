@@ -1,5 +1,4 @@
 import time
-import re
 import fastavro
 import singer
 
@@ -19,7 +18,8 @@ def filter_manifests_to_sync(manifests, table_name, state):
     if bookmark:
         bookmarked_dump_id = int(bookmark.split('/')[0].replace('sync_', ''))
 
-    full_table_dumps = [dump_id for dump_id, manifest in manifests.items() if manifest.get(table_name, {}).get('incremental') == False]
+    full_table_dumps = [dump_id for dump_id, manifest in manifests.items()
+                        if manifest.get(table_name, {}).get('incremental') is False]
     last_full_table_dump = max(full_table_dumps)
 
     if bookmark:
@@ -61,7 +61,10 @@ def sync_stream(bucket, state, stream, manifests):
     table_name = stream['stream']
     LOGGER.info('Syncing table "%s".', table_name)
 
-    table_manifests, should_create_new_version = filter_manifests_to_sync(manifests, table_name, state)
+    table_manifests, should_create_new_version = filter_manifests_to_sync(manifests,
+                                                                          table_name,
+                                                                          state)
+
     files = get_files_to_sync(table_manifests, table_name, state, bucket)
 
     records_streamed = 0
@@ -72,7 +75,9 @@ def sync_stream(bucket, state, stream, manifests):
         # Set version so it can be used for an activate version message
         version = int(time.time() * 1000)
 
-        LOGGER.info('Detected full sync for stream table name %s, setting version to %d', table_name, version)
+        LOGGER.info('Detected full sync for stream table name %s, setting version to %d',
+                    table_name,
+                    version)
         state = singer.write_bookmark(state, table_name, 'version', version)
         singer.write_state(state)
 

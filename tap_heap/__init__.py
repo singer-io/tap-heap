@@ -31,8 +31,8 @@ def stream_is_selected(mdata):
     return mdata.get((), {}).get('selected', False)
 
 def manifest_contains_table(manifests, table_name):
-    for manifest in manifests.values():
-        if table_name in manifest:
+    for mani in manifests.values():
+        if table_name in mani:
             return True
 
     return False
@@ -78,7 +78,7 @@ def main():
         # duck type whether we have access to the bucket or not.
         #
         # pylint: disable=expression-not-assigned
-        [x for x in s3.list_manifest_files_in_bucket(args.config['bucket'])]
+        next(s3.list_manifest_files_in_bucket(args.config['bucket']))
         LOGGER.warning("Able to access manifest files without assuming role!")
     except botocore.exceptions.ClientError:
         s3.setup_aws_client(args.config)
