@@ -16,7 +16,6 @@ jobs:
             source ~/.virtualenvs/tap-heap/bin/activate
             pip install -U pip setuptools
             pip install .[dev]
-      - add_ssh_keys
       - run:
           name: 'Run tests'
           command: |
