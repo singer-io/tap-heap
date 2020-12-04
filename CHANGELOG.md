@@ -1,5 +1,8 @@
 # Changelog
 
+# 1.1.1
+  * Check for a version bookmark and if it is not present then do a full table resync [#12](https://github.com/singer-io/tap-heap/pull/12)
+
 # 1.1.0
   * Updated how we read manifest files and how we choose what files to sync. Added a version bookmark and tests. [#11](https://github.com/singer-io/tap-heap/pull/11)
 
