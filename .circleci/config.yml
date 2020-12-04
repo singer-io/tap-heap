@@ -20,7 +20,7 @@ jobs:
           name: 'Run tests'
           command: |
             source ~/.virtualenvs/tap-heap/bin/activate
-            make
+            make test
 workflows:
   version: 2
   commit:
