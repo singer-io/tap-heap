@@ -21,19 +21,18 @@ def filter_manifests_to_sync(manifests, table_name, state):
 
     incremental_dumps = [dump_id for dump_id, manifest in manifests.items() if manifest.get(table_name, {}).get('incremental') == False]
     last_incremental_dump = max(incremental_dumps)
+
     if bookmark:
         minimum_dump_id_to_sync = max(last_incremental_dump, bookmarked_dump_id)
+        should_send_activate_version = minimum_dump_id_to_sync != bookmarked_dump_id
     else:
         minimum_dump_id_to_sync = last_incremental_dump
+        should_send_activate_version = True
 
     # table_manifest[dump_id] = {"files" ["file 1"], "incremental": True, "columns": ["column_1"]}
     table_manifests = {dump_id: manifest.get(table_name)
                        for dump_id, manifest in manifests.items()
                        if dump_id >= minimum_dump_id_to_sync and manifest.get(table_name)}
-
-    should_send_activate_version = True
-    if bookmark:
-        should_send_activate_version = minimum_dump_id_to_sync != bookmarked_dump_id
 
     return (table_manifests, should_send_activate_version)
 
