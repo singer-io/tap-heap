@@ -1,10 +1,11 @@
-def generate_fake_schema(manifest_table):
+def generate_fake_schema(columns):
     schema = {
         "type": "object",
         "properties": {}
     }
-    for column in manifest_table['columns']:
+    for column in columns:
         schema['properties'][column] = {"type": "string"}
+
     return schema
 
 def generate_schema_from_avro(avro_schema):

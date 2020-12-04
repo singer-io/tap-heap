@@ -1,3 +1,4 @@
+from collections import defaultdict
 from singer import metadata
 from tap_heap import manifest
 from tap_heap.schema import generate_fake_schema
@@ -5,9 +6,15 @@ from tap_heap.schema import generate_fake_schema
 def discover_streams(bucket):
     streams = []
 
-    merged_manifests = manifest.generate_merged_manifests(bucket)
-    for table_name, manifest_table in merged_manifests.items():
-        schema = generate_fake_schema(manifest_table)
+    manifests = manifest.generate_manifests(bucket)
+
+    table_name_to_columns = defaultdict(set)
+    for all_table_manifests in manifests.values():
+        for table_name, table_manifest in all_table_manifests.items():
+            table_name_to_columns[table_name].update(set(table_manifest['columns']))
+
+    for table_name, columns in table_name_to_columns.items():
+        schema = generate_fake_schema(columns)
         streams.append({'stream': table_name, 'tap_stream_id': table_name,
                         'schema': schema, 'metadata': load_metadata(table_name, schema)})
 

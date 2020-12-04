@@ -30,12 +30,19 @@ def do_discover(config):
 def stream_is_selected(mdata):
     return mdata.get((), {}).get('selected', False)
 
+def manifest_contains_table(manifests, table_name):
+    for mani in manifests.values():
+        if table_name in mani:
+            return True
+
+    return False
+
 
 def do_sync(config, catalog, state):
     LOGGER.info('Starting sync.')
 
     bucket = config['bucket']
-    merged_manifests = manifest.generate_merged_manifests(bucket)
+    manifests = manifest.generate_manifests(bucket)
 
     for stream in catalog['streams']:
         stream_name = stream['tap_stream_id']
@@ -45,14 +52,13 @@ def do_sync(config, catalog, state):
             LOGGER.info("%s: Skipping - not selected", stream_name)
             continue
 
-        manifest_table = next(m for name, m in merged_manifests.items() if name == stream_name)
-        if not manifest_table:
+        if not manifest_contains_table(manifests, stream_name):
             LOGGER.info("Selected table not found in manifests. Skipping")
             continue
 
         singer.write_state(state)
         LOGGER.info("%s: Starting sync", stream_name)
-        counter_value = sync_stream(bucket, state, stream, manifest_table)
+        counter_value = sync_stream(bucket, state, stream, manifests)
         LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
 
     LOGGER.info('Done syncing.')
@@ -72,7 +78,7 @@ def main():
         # duck type whether we have access to the bucket or not.
         #
         # pylint: disable=expression-not-assigned
-        [x for x in s3.list_manifest_files_in_bucket(args.config['bucket'])]
+        next(s3.list_manifest_files_in_bucket(args.config['bucket']))
         LOGGER.warning("Able to access manifest files without assuming role!")
     except botocore.exceptions.ClientError:
         s3.setup_aws_client(args.config)

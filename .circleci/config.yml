@@ -2,14 +2,9 @@ version: 2
 jobs:
   build:
     docker:
-      - image: ubuntu:16.04
+      - image: 218546966473.dkr.ecr.us-east-1.amazonaws.com/circle-ci:tap-tester-v4
     steps:
       - checkout
-      - run:
-          name: 'Install python 3.5.2'
-          command: |
-            apt update
-            apt install --yes python3 python3-pip python3-venv
       - run:
           name: 'Install libsnappy-dev'
           command: |
@@ -25,4 +20,21 @@ jobs:
           name: 'Run tests'
           command: |
             source ~/.virtualenvs/tap-heap/bin/activate
-            make
+            make test
+workflows:
+  version: 2
+  commit:
+    jobs:
+      - build:
+          context: circleci-user
+  build_daily:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - build:
+          context: circleci-user
