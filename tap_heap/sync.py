@@ -19,22 +19,22 @@ def filter_manifests_to_sync(manifests, table_name, state):
     if bookmark:
         bookmarked_dump_id = int(bookmark.split('/')[0].replace('sync_', ''))
 
-    incremental_dumps = [dump_id for dump_id, manifest in manifests.items() if manifest.get(table_name, {}).get('incremental') == False]
-    last_incremental_dump = max(incremental_dumps)
+    full_table_dumps = [dump_id for dump_id, manifest in manifests.items() if manifest.get(table_name, {}).get('incremental') == False]
+    last_full_table_dump = max(full_table_dumps)
 
     if bookmark:
-        minimum_dump_id_to_sync = max(last_incremental_dump, bookmarked_dump_id)
-        should_send_activate_version = minimum_dump_id_to_sync != bookmarked_dump_id
+        minimum_dump_id_to_sync = max(last_full_table_dump, bookmarked_dump_id)
+        should_create_new_version = minimum_dump_id_to_sync != bookmarked_dump_id
     else:
-        minimum_dump_id_to_sync = last_incremental_dump
-        should_send_activate_version = True
+        minimum_dump_id_to_sync = last_full_table_dump
+        should_create_new_version = True
 
     # table_manifest[dump_id] = {"files" ["file 1"], "incremental": True, "columns": ["column_1"]}
     table_manifests = {dump_id: manifest.get(table_name)
                        for dump_id, manifest in manifests.items()
                        if dump_id >= minimum_dump_id_to_sync and manifest.get(table_name)}
 
-    return (table_manifests, should_send_activate_version)
+    return (table_manifests, should_create_new_version)
 
 def remove_prefix(file_name, bucket):
     path_prefix = 's3://{}/'.format(bucket)
@@ -46,12 +46,13 @@ def get_files_to_sync(table_manifests, table_name, state, bucket):
     bookmark = singer.get_bookmark(state, table_name, 'file')
 
     # Get flattened file names and remove the prefix
-
     files = sorted([remove_prefix(file_name, bucket)
                     for manifest in table_manifests.values()
                     for file_name in manifest['files']])
 
     if bookmark:
+        #NB> The bookmark is a fully synced file, so start immediately
+        #after the bookmark
         files = files[files.index(bookmark)+1:]
 
     return files
@@ -60,15 +61,14 @@ def sync_stream(bucket, state, stream, manifests):
     table_name = stream['stream']
     LOGGER.info('Syncing table "%s".', table_name)
 
-    table_manifests, should_send_activate_version = filter_manifests_to_sync(manifests, table_name, state)
+    table_manifests, should_create_new_version = filter_manifests_to_sync(manifests, table_name, state)
     files = get_files_to_sync(table_manifests, table_name, state, bucket)
 
     records_streamed = 0
 
     version = singer.get_bookmark(state, table_name, 'version')
 
-    # Detect whether we need to create a new version
-    if should_send_activate_version:
+    if should_create_new_version:
         # Set version so it can be used for an activate version message
         version = int(time.time() * 1000)
 
@@ -85,11 +85,9 @@ def sync_stream(bucket, state, stream, manifests):
         state = singer.write_bookmark(state, table_name, 'file', s3_file_path)
         singer.write_state(state)
 
-    # After syncing, activate the new version
-    if should_send_activate_version:
-        LOGGER.info('Sending activate version message %d', version)
-        message = singer.ActivateVersionMessage(stream=table_name, version=version)
-        singer.write_message(message)
+    LOGGER.info('Sending activate version message %d', version)
+    message = singer.ActivateVersionMessage(stream=table_name, version=version)
+    singer.write_message(message)
 
     LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
     return records_streamed
