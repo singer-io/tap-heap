@@ -31,14 +31,11 @@ def filter_manifests_to_sync(manifests, table_name, state):
                        for dump_id, manifest in manifests.items()
                        if dump_id >= minimum_dump_id_to_sync and manifest.get(table_name)}
 
-    return table_manifests
+    should_send_activate_version = True
+    if bookmark:
+        should_send_activate_version = minimum_dump_id_to_sync != bookmarked_dump_id
 
-def should_send_activate_version(table_manifests):
-    for manifest in table_manifests.values():
-        if manifest['incremental'] == False:
-            return True
-
-    return False
+    return (table_manifests, should_send_activate_version)
 
 def remove_prefix(file_name, bucket):
     path_prefix = 's3://{}/'.format(bucket)
@@ -64,9 +61,7 @@ def sync_stream(bucket, state, stream, manifests):
     table_name = stream['stream']
     LOGGER.info('Syncing table "%s".', table_name)
 
-    # TODO Filters any files <= the bookmark
-    # TODO Return list of files to sync in the order we need to sync them in
-    table_manifests = filter_manifests_to_sync(manifests, table_name, state)
+    table_manifests, should_send_activate_version = filter_manifests_to_sync(manifests, table_name, state)
     files = get_files_to_sync(table_manifests, table_name, state, bucket)
 
     records_streamed = 0
@@ -74,7 +69,7 @@ def sync_stream(bucket, state, stream, manifests):
     version = singer.get_bookmark(state, table_name, 'version')
 
     # Detect whether we need to create a new version
-    if should_send_activate_version(table_manifests):
+    if should_send_activate_version:
         # Set version so it can be used for an activate version message
         version = int(time.time() * 1000)
 
@@ -92,7 +87,7 @@ def sync_stream(bucket, state, stream, manifests):
         singer.write_state(state)
 
     # After syncing, activate the new version
-    if should_send_activate_version(table_manifests):
+    if should_send_activate_version:
         LOGGER.info('Sending activate version message %d', version)
         message = singer.ActivateVersionMessage(stream=table_name, version=version)
         singer.write_message(message)
