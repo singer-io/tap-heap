@@ -1,4 +1,5 @@
 import time
+import re
 import fastavro
 import singer
 
@@ -45,6 +46,15 @@ def remove_prefix(file_name, bucket):
 
     return file_name.replace(path_prefix, '')
 
+def key_fn(key):
+    """This function ensures we sort a list of manifest files based on the 'sync_id' and 'part_id'
+    For example given a key of:
+      'sync_852/sessions/part-00000-4a06bab5-0ef3-4b21-b9af-e772fbb37b0e-c000.avro'
+    This function returns a tuple: (int("852"), int("00000")
+    """
+
+    matches = re.findall('([0-9]+)', key)
+    return (int(matches[0]), int(matches[1]))
 
 def get_files_to_sync(table_manifests, table_name, state, bucket):
     bookmark = singer.get_bookmark(state, table_name, 'file')
@@ -53,7 +63,7 @@ def get_files_to_sync(table_manifests, table_name, state, bucket):
     # Get flattened file names and remove the prefix
     files = sorted([remove_prefix(file_name, bucket)
                     for manifest in table_manifests.values()
-                    for file_name in manifest['files']])
+                    for file_name in manifest['files']], key=key_fn)
 
     if bookmark and bookmarked_version and bookmark in files:
         #NB> The bookmark is a fully synced file, so start immediately
