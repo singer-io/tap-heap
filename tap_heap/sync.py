@@ -53,8 +53,10 @@ def key_fn(key):
     This function returns a tuple: (int("852"), int("00000")
     """
 
-    matches = re.findall('([0-9]+)', key)
-    return (int(matches[0]), int(matches[1]))
+    file_path = key.split('/')
+    dump_id = file_path[0].replace('sync_', '')
+    part_number = re.findall('([0-9]+)', file_path[-1])[0]
+    return (int(dump_id), int(part_number))
 
 def get_files_to_sync(table_manifests, table_name, state, bucket):
     bookmark = singer.get_bookmark(state, table_name, 'file')
