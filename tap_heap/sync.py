@@ -55,7 +55,7 @@ def get_files_to_sync(table_manifests, table_name, state, bucket):
                     for manifest in table_manifests.values()
                     for file_name in manifest['files']])
 
-    if bookmark and bookmarked_version:
+    if bookmark and bookmarked_version and bookmark in files:
         #NB> The bookmark is a fully synced file, so start immediately
         #after the bookmark
         files = files[files.index(bookmark)+1:]
