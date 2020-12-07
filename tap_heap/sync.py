@@ -1,4 +1,5 @@
 import time
+import re
 import fastavro
 import singer
 
@@ -45,6 +46,17 @@ def remove_prefix(file_name, bucket):
 
     return file_name.replace(path_prefix, '')
 
+def key_fn(key):
+    """This function ensures we sort a list of manifest files based on the 'sync_id' and 'part_id'
+    For example given a key of:
+      'sync_852/sessions/part-00000-4a06bab5-0ef3-4b21-b9af-e772fbb37b0e-c000.avro'
+    This function returns a tuple: (int("852"), int("00000")
+    """
+
+    file_path = key.split('/')
+    dump_id = file_path[0].replace('sync_', '')
+    part_number = re.findall('([0-9]+)', file_path[-1])[0]
+    return (int(dump_id), int(part_number))
 
 def get_files_to_sync(table_manifests, table_name, state, bucket):
     bookmark = singer.get_bookmark(state, table_name, 'file')
@@ -53,9 +65,9 @@ def get_files_to_sync(table_manifests, table_name, state, bucket):
     # Get flattened file names and remove the prefix
     files = sorted([remove_prefix(file_name, bucket)
                     for manifest in table_manifests.values()
-                    for file_name in manifest['files']])
+                    for file_name in manifest['files']], key=key_fn)
 
-    if bookmark and bookmarked_version:
+    if bookmark and bookmarked_version and bookmark in files:
         #NB> The bookmark is a fully synced file, so start immediately
         #after the bookmark
         files = files[files.index(bookmark)+1:]
@@ -95,9 +107,10 @@ def sync_stream(bucket, state, stream, manifests):
         state = singer.write_bookmark(state, table_name, 'file', s3_file_path)
         singer.write_state(state)
 
-    LOGGER.info('Sending activate version message %d', version)
-    message = singer.ActivateVersionMessage(stream=table_name, version=version)
-    singer.write_message(message)
+    if records_streamed > 0:
+        LOGGER.info('Sending activate version message %d', version)
+        message = singer.ActivateVersionMessage(stream=table_name, version=version)
+        singer.write_message(message)
 
     LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
     return records_streamed
