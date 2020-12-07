@@ -1,5 +1,11 @@
 # Changelog
 
+# 1.1.3
+  * Only send activate version if we sent records
+  * Only filter files on the bookmark if the bookmark is in the files list
+  * Sort the files explicitly using the dump id and part number instead of using string sorting
+  * [#16](https://github.com/singer-io/tap-heap/pull/16)
+
 # 1.1.2
   * Handle case where there are no `incremental=false` dumps [#14](https://github.com/singer-io/tap-heap/pull/14)
 
