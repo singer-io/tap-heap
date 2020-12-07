@@ -95,9 +95,10 @@ def sync_stream(bucket, state, stream, manifests):
         state = singer.write_bookmark(state, table_name, 'file', s3_file_path)
         singer.write_state(state)
 
-    LOGGER.info('Sending activate version message %d', version)
-    message = singer.ActivateVersionMessage(stream=table_name, version=version)
-    singer.write_message(message)
+    if records_streamed > 0:
+        LOGGER.info('Sending activate version message %d', version)
+        message = singer.ActivateVersionMessage(stream=table_name, version=version)
+        singer.write_message(message)
 
     LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
     return records_streamed
