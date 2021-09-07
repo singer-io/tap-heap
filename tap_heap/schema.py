@@ -18,13 +18,14 @@ def generate_schema_from_avro(avro_schema):
 
 
 def translate_avro_type(avro_type):
-    translated_type = ["null"]
+    translated_type = []
 
     if isinstance(avro_type, str):
         avro_type = [avro_type]
 
     for typ in avro_type:
         if typ == "null":
+            translated_type.append("null")
             continue
 
         if typ in ["int", "long"]:
