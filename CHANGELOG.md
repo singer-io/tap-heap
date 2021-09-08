@@ -1,5 +1,8 @@
 # Changelog
 
+# 1.1.4
+  * Handle non-union Avro types correctly during sync [#18](https://github.com/singer-io/tap-heap/pull/18)
+
 # 1.1.3
   * Only send activate version if we sent records
   * Only filter files on the bookmark if the bookmark is in the files list
