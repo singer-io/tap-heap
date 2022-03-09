@@ -42,6 +42,14 @@ class AssumeRoleProvider():
 
 @retry_pattern()
 def setup_aws_client(config):
+    if config.get("aws_access_key_id") and config.get("aws_secret_access_key"):
+        LOGGER.info("Using AWS access keys for auth")
+        boto3.setup_default_session(
+            aws_access_key_id=config.get("aws_access_key_id"),
+            aws_secret_access_key=config.get("aws_secret_access_key"),
+        )
+        return
+
     role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
                                                 config['role_name'])
     session = Session()

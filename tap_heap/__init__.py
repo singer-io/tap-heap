@@ -13,7 +13,26 @@ from tap_heap.sync import sync_stream
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "role_name"]
+REQUIRED_CONFIG_KEYS = ["start_date", "bucket"]
+
+# One of the following is also required:
+# Auth option 1: IAM Role
+REQUIRED_CONFIG_KEYS_IAM_ROLE = ["account_id", "external_id", "role_name"]
+# Auth option 2: account access keys
+REQUIRED_CONFIG_KEYS_ACCESS_KEYS = ["aws_access_key_id", "aws_secret_access_key"]
+
+
+def check_config_auth_keys(config, required_keys_access_keys, required_keys_iam_role):
+    """Ensure that all related Auth keys are provided for at least one of the auth methods."""
+    missing_keys_access_keys = [key for key in required_keys_access_keys if key not in config]
+    missing_keys_iam_role = [key for key in required_keys_iam_role if key not in config]
+    if missing_keys_access_keys and missing_keys_iam_role:
+        raise Exception(
+            "Config must contain {} if using access keys or {} if using IAM role".format(
+                required_keys_access_keys, required_keys_iam_role
+            )
+        )
+
 
 def do_discover(config):
     LOGGER.info("Starting discover")
@@ -67,6 +86,11 @@ def do_sync(config, catalog, state):
 @singer.utils.handle_top_exception(LOGGER)
 def main():
     args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
+    check_config_auth_keys(
+        args.config,
+        REQUIRED_CONFIG_KEYS_ACCESS_KEYS,
+        REQUIRED_CONFIG_KEYS_IAM_ROLE
+    )
 
     try:
         # This should never succeed in production. It exists solely for
@@ -80,7 +104,7 @@ def main():
         # pylint: disable=expression-not-assigned
         next(s3.list_manifest_files_in_bucket(args.config['bucket']))
         LOGGER.warning("Able to access manifest files without assuming role!")
-    except botocore.exceptions.ClientError:
+    except (botocore.exceptions.ClientError, botocore.exceptions.NoCredentialsError):
         s3.setup_aws_client(args.config)
 
     if args.discover:
