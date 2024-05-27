@@ -11,12 +11,13 @@ from botocore.credentials import (
 )
 from botocore.exceptions import ClientError
 from botocore.session import Session
+from urllib3.exceptions import ReadTimeoutError
 
 LOGGER = singer.get_logger()
 
 def retry_pattern():
     return backoff.on_exception(backoff.expo,
-                                ClientError,
+                                (ClientError, ReadTimeoutError),
                                 max_tries=5,
                                 on_backoff=log_backoff_attempt,
                                 factor=10)
