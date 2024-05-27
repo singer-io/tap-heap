@@ -3,6 +3,7 @@ import re
 import fastavro
 import singer
 
+from concurrent import futures
 from singer import metadata
 from singer import Transformer
 from tap_heap import s3
@@ -74,7 +75,7 @@ def get_files_to_sync(table_manifests, table_name, state, bucket):
 
     return files
 
-def sync_stream(bucket, state, stream, manifests):
+def sync_stream(bucket, state, stream, manifests, batch_size=3):
     table_name = stream['stream']
     LOGGER.info('Syncing table "%s".', table_name)
 
@@ -98,14 +99,22 @@ def sync_stream(bucket, state, stream, manifests):
         state = singer.write_bookmark(state, table_name, 'version', version)
         singer.write_state(state)
 
-    for s3_file_path in files:
-        file_records_streamed = sync_file(bucket, s3_file_path, stream, version)
-        records_streamed += file_records_streamed
-        LOGGER.info('Wrote %d records for file %s', file_records_streamed, s3_file_path)
+    with futures.ProcessPoolExecutor(max_workers=batch_size) as executor:
+        for i in range(0, len(files), batch_size):
+            batch = files[i:i + batch_size]
+            future_to_file = {executor.submit(sync_file, bucket, file_path, stream, version): file_path for file_path in batch}
 
-        # Finished syncing a file, write a bookmark
-        state = singer.write_bookmark(state, table_name, 'file', s3_file_path)
-        singer.write_state(state)
+            # Wait for the current batch to complete
+            for future in futures.as_completed(future_to_file):
+                file_path = future_to_file[future]
+                try:
+                    records_streamed += future.result()
+                except Exception as e:
+                    raise Exception("Error reading file %s", file_path) from e
+
+            # Finished syncing a file, write a bookmark
+            state = singer.write_bookmark(state, table_name, 'file', files[i + batch_size])
+            singer.write_state(state)
 
     if records_streamed > 0:
         LOGGER.info('Sending activate version message %d', version)
@@ -136,4 +145,5 @@ def sync_file(bucket, s3_path, stream, version=None):
             singer.write_message(singer.RecordMessage(table_name, to_write, version=version))
             records_synced += 1
 
+    LOGGER.info('Wrote %d records for file %s', records_synced, s3_path)
     return records_synced
