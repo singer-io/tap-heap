@@ -3,6 +3,7 @@ import re
 from concurrent import futures
 import fastavro
 import singer
+import multiprocessing
 
 from singer import metadata
 from singer import Transformer
@@ -10,6 +11,11 @@ from tap_heap import s3
 from tap_heap.schema import generate_schema_from_avro
 
 LOGGER = singer.get_logger()
+queue = multiprocessing.Queue(maxsize=20000)
+
+# Shared flag to indicate if an exception has occurred
+manager = multiprocessing.Manager()
+exception_occurred = manager.Event()
 
 def filter_manifests_to_sync(manifests, table_name, state):
     """Filters a set of files for the table using 2 parts of the file name and drops up to
@@ -75,7 +81,18 @@ def get_files_to_sync(table_manifests, table_name, state, bucket):
 
     return files
 
-def sync_stream(bucket, state, stream, manifests, batch_size=3):    # pylint: disable=too-many-locals
+def write_records():
+    try:
+        while True:
+            message = queue.get()
+            # Sentinel value to stop the consumer process
+            if message is None:
+                break
+            singer.write_message(message)
+    except Exception:
+        exception_occurred.set()
+
+def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: disable=too-many-locals
     table_name = stream['stream']
     LOGGER.info('Syncing table "%s".', table_name)
 
@@ -100,6 +117,10 @@ def sync_stream(bucket, state, stream, manifests, batch_size=3):    # pylint: di
         singer.write_state(state)
 
     with futures.ProcessPoolExecutor(max_workers=batch_size) as executor:
+        # Create and start the consumer process
+        consumer = multiprocessing.Process(target=write_records)
+        consumer.start()
+
         for i in range(0, len(files), batch_size):
             batch = files[i:i + batch_size]
             future_to_file = {executor.submit(
@@ -111,16 +132,24 @@ def sync_stream(bucket, state, stream, manifests, batch_size=3):    # pylint: di
                 try:
                     records_streamed += future.result()
                 except Exception as exc:
+                    exception_occurred.set()
                     raise Exception("Error reading file %s" % file_path) from exc
 
             # Finished syncing a file, write a bookmark
             state = singer.write_bookmark(state, table_name, 'file', files[i + batch_size])
             singer.write_state(state)
 
+        # Signal the consumer process to stop
+        queue.put(None)
+
+        # Wait for the consumer process to finish
+        consumer.join()
+
     if records_streamed > 0:
         LOGGER.info('Sending activate version message %d', version)
         message = singer.ActivateVersionMessage(stream=table_name, version=version)
         singer.write_message(message)
+        queue.put(message)
 
     LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
     return records_streamed
@@ -131,20 +160,23 @@ def sync_file(bucket, s3_path, stream, version=None):
 
     table_name = stream['stream']
 
-    s3_file_handle = s3.get_file_handle(bucket, s3_path)
-    iterator = fastavro.reader(s3_file_handle._raw_stream)
-    mdata = metadata.to_map(stream['metadata'])
-    schema = generate_schema_from_avro(iterator.schema)
+    try:
+        s3_file_handle = s3.get_file_handle(bucket, s3_path)
+        iterator = fastavro.reader(s3_file_handle._raw_stream)
+        mdata = metadata.to_map(stream['metadata'])
+        schema = generate_schema_from_avro(iterator.schema)
 
-    key_properties = metadata.get(mdata, (), 'table-key-properties')
-    singer.write_schema(table_name, schema, key_properties)
+        key_properties = metadata.get(mdata, (), 'table-key-properties')
+        singer.write_schema(table_name, schema, key_properties)
 
-    records_synced = 0
-    with Transformer() as transformer:
-        for row in iterator:
-            to_write = transformer.filter_data_by_metadata(row, mdata)
-            singer.write_message(singer.RecordMessage(table_name, to_write, version=version))
-            records_synced += 1
+        records_synced = 0
+        with Transformer() as transformer:
+            for row in iterator:
+                to_write = transformer.filter_data_by_metadata(row, mdata)
+                queue.put(singer.RecordMessage(table_name, to_write, version=version))
+                records_synced += 1
+    except Exception:
+        exception_occurred.set()
 
     LOGGER.info('Wrote %d records for file %s', records_synced, s3_path)
     return records_synced
