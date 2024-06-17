@@ -75,8 +75,8 @@ def get_files_to_sync(table_manifests, table_name, state, bucket):
                     for file_name in manifest['files']], key=key_fn)
 
     if bookmark and bookmarked_version and bookmark in files:
-        #NB> The bookmark is a fully synced file, so start immediately
-        #after the bookmark
+        # NB> The bookmark is a fully synced file, so start immediately
+        # after the bookmark
         files = files[files.index(bookmark)+1:]
 
     return files
@@ -167,7 +167,9 @@ def sync_file(bucket, s3_path, stream, version=None):
         schema = generate_schema_from_avro(iterator.schema)
 
         key_properties = metadata.get(mdata, (), 'table-key-properties')
-        singer.write_schema(table_name, schema, key_properties)
+        queue.put(singer.SchemaMessage(stream=(table_name),
+                                       schema=schema,
+                                       key_properties=key_properties))
 
         records_synced = 0
         with Transformer() as transformer:
