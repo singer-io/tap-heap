@@ -13,6 +13,7 @@ from tap_heap.schema import generate_schema_from_avro
 
 LOGGER = singer.get_logger()
 queue = multiprocessing.Queue(maxsize=20000)
+QUEUE_TIMEOUT = 120
 
 # Shared flag to indicate if an exception has occurred
 manager = multiprocessing.Manager()
@@ -132,16 +133,23 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
                 file_path = future_to_file[future]
                 try:
                     records_streamed += future.result()
-                except Exception as exc:
+                except Exception:
+                    if consumer.is_alive():
+                        consumer.terminate()
+                        queue.close()
+
                     exception_occurred.set()
-                    raise Exception("Error reading file %s" % file_path) from exc
+                    break
+
+            if exception_occurred.is_set():
+                raise Exception("Error reading file %s" % file_path)
 
             # Finished syncing a file, write a bookmark
             state = singer.write_bookmark(state, table_name, 'file', files[i + batch_size])
             singer.write_state(state)
 
         # Signal the consumer process to stop
-        queue.put(None)
+        queue.put(None, timeout=QUEUE_TIMEOUT)
 
         # Wait for the consumer process to finish
         consumer.join()
@@ -157,7 +165,7 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
 
 
 @backoff.on_exception(backoff.expo,
-                      futures.process.BrokenProcessPool,
+                      Exception,
                       max_tries=3,
                       factor=2)
 def sync_file(bucket, s3_path, stream, version=None):
@@ -165,25 +173,25 @@ def sync_file(bucket, s3_path, stream, version=None):
 
     table_name = stream['stream']
 
-    try:
-        s3_file_handle = s3.get_file_handle(bucket, s3_path)
-        iterator = fastavro.reader(s3_file_handle._raw_stream)
-        mdata = metadata.to_map(stream['metadata'])
-        schema = generate_schema_from_avro(iterator.schema)
+    s3_file_handle = s3.get_file_handle(bucket, s3_path)
+    iterator = fastavro.reader(s3_file_handle._raw_stream)
+    mdata = metadata.to_map(stream['metadata'])
+    schema = generate_schema_from_avro(iterator.schema)
 
-        key_properties = metadata.get(mdata, (), 'table-key-properties')
-        queue.put(singer.SchemaMessage(stream=(table_name),
-                                       schema=schema,
-                                       key_properties=key_properties))
+    key_properties = metadata.get(mdata, (), 'table-key-properties')
+    queue.put(singer.SchemaMessage(stream=(table_name),
+                                    schema=schema,
+                                    key_properties=key_properties),
+              timeout=QUEUE_TIMEOUT)
 
-        records_synced = 0
-        with Transformer() as transformer:
-            for row in iterator:
-                to_write = transformer.filter_data_by_metadata(row, mdata)
-                queue.put(singer.RecordMessage(table_name, to_write, version=version))
-                records_synced += 1
-    except Exception:
-        exception_occurred.set()
+    records_synced = 0
+    with Transformer() as transformer:
+        for row in iterator:
+            to_write = transformer.filter_data_by_metadata(row, mdata)
+            queue.put(
+                singer.RecordMessage(table_name, to_write, version=version),
+                timeout=QUEUE_TIMEOUT)
+            records_synced += 1
 
     LOGGER.info('Wrote %d records for file %s', records_synced, s3_path)
     return records_synced
