@@ -1,3 +1,4 @@
+import backoff
 import time
 import re
 from concurrent import futures
@@ -155,6 +156,10 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
     return records_streamed
 
 
+@backoff.on_exception(backoff.expo,
+                      futures.process.BrokenProcessPool,
+                      max_tries=3,
+                      factor=2)
 def sync_file(bucket, s3_path, stream, version=None):
     LOGGER.info('Syncing file "%s".', s3_path)
 
