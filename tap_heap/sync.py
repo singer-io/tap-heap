@@ -123,6 +123,7 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
         consumer = multiprocessing.Process(target=write_records)
         consumer.start()
 
+        stored_exception = None
         for i in range(0, len(files), batch_size):
             batch = files[i:i + batch_size]
             future_to_file = {executor.submit(
@@ -133,16 +134,17 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
                 file_path = future_to_file[future]
                 try:
                     records_streamed += future.result()
-                except Exception:
+                except Exception as ex:
                     if consumer.is_alive():
                         consumer.terminate()
                         queue.close()
 
+                    stored_exception = ex
                     exception_occurred.set()
                     break
 
             if exception_occurred.is_set():
-                raise Exception("Error reading file %s" % file_path)
+                raise Exception("Error reading file %s" % file_path) from stored_exception
 
             # Finished syncing a file, write a bookmark
             state = singer.write_bookmark(state, table_name, 'file', files[i + batch_size])
