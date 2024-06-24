@@ -147,7 +147,7 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
                 raise Exception("Error reading file %s" % file_path) from stored_exception
 
             # Finished syncing a file, write a bookmark
-            state = singer.write_bookmark(state, table_name, 'file', files[i + batch_size])
+            state = singer.write_bookmark(state, table_name, 'file', files[i + len(batch) - 1])
             singer.write_state(state)
 
         # Signal the consumer process to stop
