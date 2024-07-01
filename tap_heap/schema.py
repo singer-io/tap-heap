@@ -37,6 +37,6 @@ def translate_avro_type(avro_type):
         elif typ in ["bytes", "string", "enum", "fixed"]:
             translated_type.append("string")
         else:
-            raise Exception("Encountered an Avro type that is not supported in JSON Schema: " + typ)
+            raise Exception("Encountered an Avro type that is not supported in JSON Schema: " + typ)    # pylint: disable=broad-exception-raised
 
     return translated_type

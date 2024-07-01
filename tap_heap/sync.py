@@ -1,10 +1,11 @@
-import backoff
+from concurrent import futures
+
+import multiprocessing
 import time
 import re
-from concurrent import futures
+import backoff
 import fastavro
 import singer
-import multiprocessing
 
 from singer import metadata
 from singer import Transformer
@@ -51,7 +52,7 @@ def filter_manifests_to_sync(manifests, table_name, state):
     return (table_manifests, should_create_new_version)
 
 def remove_prefix(file_name, bucket):
-    path_prefix = 's3://{}/'.format(bucket)
+    path_prefix = f's3://{bucket}/'
 
     return file_name.replace(path_prefix, '')
 
@@ -91,7 +92,7 @@ def write_records():
             if message is None:
                 break
             singer.write_message(message)
-    except Exception:
+    except Exception:    # pylint: disable=broad-exception-caught
         exception_occurred.set()
 
 def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: disable=too-many-locals
@@ -134,7 +135,7 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
                 file_path = future_to_file[future]
                 try:
                     records_streamed += future.result()
-                except Exception as ex:
+                except Exception as ex:     # pylint: disable=broad-exception-caught
                     if consumer.is_alive():
                         consumer.terminate()
                         queue.close()
@@ -144,7 +145,7 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
                     break
 
             if exception_occurred.is_set():
-                raise Exception("Error reading file %s" % file_path) from stored_exception
+                raise Exception(f"Error reading file {file_path}") from stored_exception     # pylint: disable=broad-exception-raised
 
             # Finished syncing a file, write a bookmark
             state = singer.write_bookmark(state, table_name, 'file', files[i + len(batch) - 1])

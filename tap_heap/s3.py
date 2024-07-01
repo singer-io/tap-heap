@@ -43,8 +43,7 @@ class AssumeRoleProvider():
 
 @retry_pattern()
 def setup_aws_client(config):
-    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
-                                                config['role_name'])
+    role_arn = f"arn:aws:iam::{config['account_id'].replace('-', '')}:role/{config['role_name']}"
     session = Session()
     fetcher = AssumeRoleCredentialFetcher(
         session.create_client,
