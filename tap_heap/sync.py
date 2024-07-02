@@ -6,6 +6,7 @@ import re
 import backoff
 import fastavro
 import singer
+import queue
 
 from singer import metadata
 from singer import Transformer
@@ -13,12 +14,17 @@ from tap_heap import s3
 from tap_heap.schema import generate_schema_from_avro
 
 LOGGER = singer.get_logger()
-queue = multiprocessing.Queue(maxsize=20000)
-QUEUE_TIMEOUT = 120
 
-# Shared flag to indicate if an exception has occurred
-manager = multiprocessing.Manager()
-exception_occurred = manager.Event()
+# Define global queue
+QUEUE_TIMEOUT = 120
+QUEUE_MAX_LIMIT = 20000
+record_queue = multiprocessing.Queue(maxsize=QUEUE_MAX_LIMIT)
+
+
+# This event will signal all producer and consumer threads to stop thier execution
+# if all files are extracted or any other thread exits abruptly.
+terminate_event = multiprocessing.Event()
+
 
 def filter_manifests_to_sync(manifests, table_name, state):
     """Filters a set of files for the table using 2 parts of the file name and drops up to
@@ -85,15 +91,16 @@ def get_files_to_sync(table_manifests, table_name, state, bucket):
     return files
 
 def write_records():
-    try:
-        while True:
-            message = queue.get()
-            # Sentinel value to stop the consumer process
-            if message is None:
-                break
-            singer.write_message(message)
-    except Exception:    # pylint: disable=broad-exception-caught
-        exception_occurred.set()
+    # Consumer thread will exit when terminate event is set but
+    # wait for queue to get empty after terminate event is set.
+    while not terminate_event.is_set() or record_queue.qsize():
+        try:
+            singer.write_message(record_queue.get(timeout=5))
+        except queue.Empty:
+            continue
+        except Exception as ex:    # pylint: disable=broad-exception-caught
+            terminate_event.set()
+            raise Exception(f"Consumer thread stopped abruptly!") from ex
 
 def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: disable=too-many-locals
     table_name = stream['stream']
@@ -136,15 +143,11 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
                 try:
                     records_streamed += future.result()
                 except Exception as ex:     # pylint: disable=broad-exception-caught
-                    if consumer.is_alive():
-                        consumer.terminate()
-                        queue.close()
-
                     stored_exception = ex
-                    exception_occurred.set()
+                    terminate_event.set()
                     break
 
-            if exception_occurred.is_set():
+            if terminate_event.is_set():
                 raise Exception(f"Error reading file {file_path}") from stored_exception     # pylint: disable=broad-exception-raised
 
             # Finished syncing a file, write a bookmark
@@ -152,16 +155,16 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
             singer.write_state(state)
 
         # Signal the consumer process to stop
-        queue.put(None, timeout=QUEUE_TIMEOUT)
+        terminate_event.set()
 
-        # Wait for the consumer process to finish
+        LOGGER.info("Waiting for all records in the Queue to sync.")
         consumer.join()
 
     if records_streamed > 0:
         LOGGER.info('Sending activate version message %d', version)
         message = singer.ActivateVersionMessage(stream=table_name, version=version)
         singer.write_message(message)
-        queue.put(message)
+        record_queue.put(message)
 
     LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
     return records_streamed
@@ -176,25 +179,36 @@ def sync_file(bucket, s3_path, stream, version=None):
 
     table_name = stream['stream']
 
-    s3_file_handle = s3.get_file_handle(bucket, s3_path)
-    iterator = fastavro.reader(s3_file_handle._raw_stream)
-    mdata = metadata.to_map(stream['metadata'])
-    schema = generate_schema_from_avro(iterator.schema)
+    try:
+        s3_file_handle = s3.get_file_handle(bucket, s3_path)
+        iterator = fastavro.reader(s3_file_handle._raw_stream)
+        mdata = metadata.to_map(stream['metadata'])
+        schema = generate_schema_from_avro(iterator.schema)
 
-    key_properties = metadata.get(mdata, (), 'table-key-properties')
-    queue.put(singer.SchemaMessage(stream=(table_name),
-                                    schema=schema,
-                                    key_properties=key_properties),
-              timeout=QUEUE_TIMEOUT)
-
-    records_synced = 0
-    with Transformer() as transformer:
-        for row in iterator:
-            to_write = transformer.filter_data_by_metadata(row, mdata)
-            queue.put(
-                singer.RecordMessage(table_name, to_write, version=version),
+        key_properties = metadata.get(mdata, (), 'table-key-properties')
+        record_queue.put(singer.SchemaMessage(stream=(table_name),
+                                        schema=schema,
+                                        key_properties=key_properties),
                 timeout=QUEUE_TIMEOUT)
-            records_synced += 1
 
-    LOGGER.info('Wrote %d records for file %s', records_synced, s3_path)
-    return records_synced
+        records_synced = 0
+        with Transformer() as transformer:
+            for row in iterator:
+                # Terminate the thread execution if any of producer or consumer threads exits abruptly
+                if terminate_event.is_set():
+                    raise Exception("Thread is terminated abruptly!")
+
+                to_write = transformer.filter_data_by_metadata(row, mdata)
+                record_queue.put(
+                    singer.RecordMessage(table_name, to_write, version=version),
+                    timeout=QUEUE_TIMEOUT)
+                records_synced += 1
+
+        LOGGER.info('Wrote %d records for file %s', records_synced, s3_path)
+        return records_synced
+    except queue.Full as ex:
+        raise ex
+    except Exception as ex:
+        terminate_event.set()
+        raise Exception(f"Terminated {s3_path} extraction thread!") from ex
+
