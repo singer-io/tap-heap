@@ -101,6 +101,7 @@ def write_records():
         except Exception as ex:    # pylint: disable=broad-exception-caught
             terminate_event.set()
             raise Exception(f"Consumer thread stopped abruptly!") from ex
+    LOGGER.info("Existing from the consumer thread!")
 
 def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: disable=too-many-locals
     table_name = stream['stream']
@@ -155,10 +156,14 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
             singer.write_state(state)
 
         # Signal the consumer process to stop
+        LOGGER.info("Main thread is setting the terminate event after successful extraction!")
         terminate_event.set()
 
         LOGGER.info("Waiting for all records in the Queue to sync.")
         consumer.join()
+
+        # Clear any thread terminate event set earlier before stream extraction starts
+        terminate_event.clear()
 
     if records_streamed > 0:
         LOGGER.info('Sending activate version message %d', version)
@@ -209,6 +214,6 @@ def sync_file(bucket, s3_path, stream, version=None):
     except queue.Full as ex:
         raise ex
     except Exception as ex:
-        terminate_event.set()
-        raise Exception(f"Terminated {s3_path} extraction thread!") from ex
+        LOGGER.info(f"{str(ex)}, Terminated {s3_path} extraction thread!")
+        raise ex
 
