@@ -1,15 +1,17 @@
 from concurrent import futures
 
 import multiprocessing
+from multiprocessing import ProcessError
 import time
 import re
+import queue
 import backoff
 import fastavro
 import singer
-import queue
 
 from singer import metadata
 from singer import Transformer
+
 from tap_heap import s3
 from tap_heap.schema import generate_schema_from_avro
 
@@ -88,7 +90,7 @@ def get_files_to_sync(table_manifests, table_name, state, bucket):
         # after the bookmark
         files = files[files.index(bookmark)+1:]
 
-    LOGGER.info(f"Found {len(files)} menifest files.")
+    LOGGER.info("Found %d menifest files.", len(files))
     return files
 
 def write_records():
@@ -101,7 +103,7 @@ def write_records():
             continue
         except Exception as ex:    # pylint: disable=broad-exception-caught
             terminate_event.set()
-            raise Exception(f"Consumer thread stopped abruptly!") from ex
+            raise ProcessError("Consumer thread stopped abruptly!") from ex
     LOGGER.info("Existing from the consumer thread!")
 
 def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: disable=too-many-locals
@@ -152,7 +154,7 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
             if terminate_event.is_set():
                 raise Exception(f"Error reading file {file_path}") from stored_exception     # pylint: disable=broad-exception-raised
 
-            LOGGER.info(f"Extracted {i + batch_size}/{len(files)} menifest files.")
+            LOGGER.info("Extracted %d/%d menifest files.", i + batch_size, len(files))
 
             # Finished syncing a file, write a bookmark
             state = singer.write_bookmark(state, table_name, 'file', files[i + len(batch) - 1])
@@ -178,10 +180,10 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
     return records_streamed
 
 
-@backoff.on_exception(backoff.expo,
-                      Exception,
+@backoff.on_exception(backoff.constant,
+                      (Exception, queue.Full),
                       max_tries=3,
-                      factor=2)
+                      interval=60)
 def sync_file(bucket, s3_path, stream, version=None):
     LOGGER.info('Syncing file "%s".', s3_path)
 
@@ -202,9 +204,10 @@ def sync_file(bucket, s3_path, stream, version=None):
         records_synced = 0
         with Transformer() as transformer:
             for row in iterator:
-                # Terminate the thread execution if any of producer or consumer threads exits abruptly
+                # Terminate the thread execution
+                # if any of produceror consumer threads exits abruptly
                 if terminate_event.is_set():
-                    raise Exception("Thread is terminated abruptly!")
+                    raise ProcessError("Recieved event to terminate the thread abruptly!")
 
                 to_write = transformer.filter_data_by_metadata(row, mdata)
                 record_queue.put(
@@ -216,7 +219,7 @@ def sync_file(bucket, s3_path, stream, version=None):
         return records_synced
     except queue.Full as ex:
         raise ex
-    except Exception as ex:
-        LOGGER.info(f"{str(ex)}, Terminated {s3_path} extraction thread!")
+    except ProcessError as ex:
         raise ex
-
+    except Exception as ex:
+        raise ProcessError(f"Terminated {s3_path} extraction thread!") from ex
