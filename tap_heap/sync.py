@@ -23,7 +23,7 @@ QUEUE_MAX_LIMIT = 20000
 record_queue = multiprocessing.Queue(maxsize=QUEUE_MAX_LIMIT)
 
 
-# This event will signal all producer and consumer threads to stop thier execution
+# This event will signal all producer and consumer threads to stop their execution
 # if all files are extracted or any other thread exits abruptly.
 terminate_event = multiprocessing.Event()
 
@@ -90,7 +90,7 @@ def get_files_to_sync(table_manifests, table_name, state, bucket):
         # after the bookmark
         files = files[files.index(bookmark)+1:]
 
-    LOGGER.info("Found %d menifest files.", len(files))
+    LOGGER.info("Found %d manifest files.", len(files))
     return files
 
 def write_records():
@@ -104,7 +104,7 @@ def write_records():
         except Exception as ex:    # pylint: disable=broad-exception-caught
             terminate_event.set()
             raise ProcessError("Consumer thread stopped abruptly!") from ex
-    LOGGER.info("Existing from the consumer thread!")
+    LOGGER.info("Exiting from the consumer thread!")
 
 def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: disable=too-many-locals
     table_name = stream['stream']
@@ -154,7 +154,7 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
             if terminate_event.is_set():
                 raise Exception(f"Error reading file {file_path}") from stored_exception     # pylint: disable=broad-exception-raised
 
-            LOGGER.info("Extracted %d/%d menifest files.", i + batch_size, len(files))
+            LOGGER.info("Extracted %d/%d manifest files.", i + batch_size, len(files))
 
             # Finished syncing a file, write a bookmark
             state = singer.write_bookmark(state, table_name, 'file', files[i + len(batch) - 1])
@@ -207,7 +207,7 @@ def sync_file(bucket, s3_path, stream, version=None):
                 # Terminate the thread execution
                 # if any of produceror consumer threads exits abruptly
                 if terminate_event.is_set():
-                    raise ProcessError("Recieved event to terminate the thread abruptly!")
+                    raise ProcessError("Received event to terminate the thread abruptly!")
 
                 to_write = transformer.filter_data_by_metadata(row, mdata)
                 record_queue.put(
