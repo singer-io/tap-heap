@@ -88,6 +88,7 @@ def get_files_to_sync(table_manifests, table_name, state, bucket):
         # after the bookmark
         files = files[files.index(bookmark)+1:]
 
+    LOGGER.info(f"Found {len(files)} menifest files.")
     return files
 
 def write_records():
@@ -150,6 +151,8 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
 
             if terminate_event.is_set():
                 raise Exception(f"Error reading file {file_path}") from stored_exception     # pylint: disable=broad-exception-raised
+
+            LOGGER.info(f"Extracted {i + batch_size}/{len(files)} menifest files.")
 
             # Finished syncing a file, write a bookmark
             state = singer.write_bookmark(state, table_name, 'file', files[i + len(batch) - 1])
