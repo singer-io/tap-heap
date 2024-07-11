@@ -19,7 +19,7 @@ def do_discover(config):
     LOGGER.info("Starting discover")
     streams = discover_streams(config['bucket'])
     if not streams:
-        raise Exception("No streams found")
+        raise Exception("No streams found")     # pylint: disable=broad-exception-raised
     catalog = {"streams": streams}
     for stream in streams:
         LOGGER.info('Found stream %s', stream['tap_stream_id'])

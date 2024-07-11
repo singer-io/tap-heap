@@ -11,12 +11,13 @@ from botocore.credentials import (
 )
 from botocore.exceptions import ClientError
 from botocore.session import Session
+from urllib3.exceptions import ReadTimeoutError
 
 LOGGER = singer.get_logger()
 
 def retry_pattern():
     return backoff.on_exception(backoff.expo,
-                                ClientError,
+                                (ClientError, ReadTimeoutError),
                                 max_tries=5,
                                 on_backoff=log_backoff_attempt,
                                 factor=10)
@@ -42,8 +43,7 @@ class AssumeRoleProvider():
 
 @retry_pattern()
 def setup_aws_client(config):
-    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
-                                                config['role_name'])
+    role_arn = f"arn:aws:iam::{config['account_id'].replace('-', '')}:role/{config['role_name']}"
     session = Session()
     fetcher = AssumeRoleCredentialFetcher(
         session.create_client,

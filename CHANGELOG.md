@@ -1,5 +1,8 @@
 # Changelog
 
+# 1.2.0
+  * Implement multi-processing to improve extraction performance [#20](https://github.com/singer-io/tap-heap/pull/20)
+
 # 1.1.4
   * Handle non-union Avro types correctly during sync [#18](https://github.com/singer-io/tap-heap/pull/18)
 
