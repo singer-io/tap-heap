@@ -44,10 +44,9 @@ class AssumeRoleProvider():
 
 @retry_pattern()
 def setup_aws_client(config):
-    proxy_role_arn = f"arn:aws:iam::{config['proxy_account_id'].replace('-', '')}\
-        :role/{config['proxy_role_name']}"
-    cust_role_arn = f"arn:aws:iam::{config['account_id'].replace('-', '')}\
-        :role/{config['role_name']}"
+    # pylint: disable=line-too-long
+    proxy_role_arn = f"arn:aws:iam::{config['proxy_account_id'].replace('-', '')}:role/{config['proxy_role_name']}"
+    cust_role_arn = f"arn:aws:iam::{config['account_id'].replace('-', '')}:role/{config['role_name']}"
 
     # Step 1: Assume Role in Account Proxy and set up refreshable session
     session_proxy = Session()
