@@ -44,6 +44,32 @@ class AssumeRoleProvider():
 
 @retry_pattern()
 def setup_aws_client(config):
+    role_arn = f"arn:aws:iam::{config['account_id'].replace('-', '')}:role/{config['role_name']}"
+    session = Session()
+    fetcher = AssumeRoleCredentialFetcher(
+        session.create_client,
+        session.get_credentials(),
+        role_arn,
+        extra_args={
+            'DurationSeconds': 3600,
+            'RoleSessionName': 'TapHeap',
+            'ExternalId': config['external_id']
+        },
+        cache=JSONFileCache()
+    )
+
+    refreshable_session = Session()
+    refreshable_session.register_component(
+        'credential_provider',
+        CredentialResolver([AssumeRoleProvider(fetcher)])
+    )
+
+    LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
+    boto3.setup_default_session(botocore_session=refreshable_session)
+
+
+@retry_pattern()
+def setup_aws_client_with_proxy(config):
     # pylint: disable=line-too-long
     proxy_role_arn = f"arn:aws:iam::{config['proxy_account_id'].replace('-', '')}:role/{config['proxy_role_name']}"
     cust_role_arn = f"arn:aws:iam::{config['account_id'].replace('-', '')}:role/{config['role_name']}"
@@ -56,8 +82,7 @@ def setup_aws_client(config):
         role_arn=proxy_role_arn,
         extra_args={
             'DurationSeconds': 3600,
-            'RoleSessionName': 'ProxySession',
-            'ExternalId': config['proxy_external_id']
+            'RoleSessionName': 'ProxySession'
         },
         cache=JSONFileCache()
     )
@@ -77,18 +102,11 @@ def setup_aws_client(config):
         role_arn=cust_role_arn,
         extra_args={
             'DurationSeconds': 3600,
-            'RoleSessionName': 'CustSession',
+            'RoleSessionName': 'TapHeapCustSession',
             'ExternalId': config['external_id']
         },
         cache=JSONFileCache()
     )
-
-    # # Refreshable credentials for Account Customer
-    # refreshable_credentials_c = RefreshableCredentials.create_from_metadata(
-    #     metadata=fetcher_cust.fetch_credentials(),
-    #     refresh_using=fetcher_cust.fetch_credentials,
-    #     method="sts-assume-role"
-    # )
 
     # Set up refreshable session for Customer Account
     refreshable_session_cust = Session()
