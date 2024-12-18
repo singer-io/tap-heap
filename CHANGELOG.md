@@ -1,7 +1,7 @@
 # Changelog
 
 ## 1.3.0
-  * Add proxy AWS Account as a middleware to mask the Qlik AWS account ID
+  * Adds proxy AWS Account support
   * [#21](https://github.com/singer-io/tap-heap/pull/21)
 
 # 1.2.0
