@@ -81,7 +81,13 @@ def main():
         next(s3.list_manifest_files_in_bucket(args.config['bucket']))
         LOGGER.warning("Able to access manifest files without assuming role!")
     except botocore.exceptions.ClientError:
-        s3.setup_aws_client(args.config)
+        # Check if proxy_account_id and proxy_role_name are in config
+        if 'proxy_account_id' in args.config and 'proxy_role_name' in args.config:
+            # If both are present, call setup_aws_client_with_proxy
+            s3.setup_aws_client_with_proxy(args.config)
+        else:
+            # Otherwise, call setup_aws_client
+            s3.setup_aws_client(args.config)
 
     if args.discover:
         do_discover(args.config)

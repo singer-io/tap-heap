@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0
+  * Adds proxy AWS Account support
+  * [#21](https://github.com/singer-io/tap-heap/pull/21)
+
 # 1.2.0
   * Implement multi-processing to improve extraction performance [#20](https://github.com/singer-io/tap-heap/pull/20)
 
