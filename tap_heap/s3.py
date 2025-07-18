@@ -73,7 +73,7 @@ def setup_aws_client_with_proxy(config):
     # pylint: disable=line-too-long
     proxy_role_arn = f"arn:aws:iam::{config['proxy_account_id'].replace('-', '')}:role/{config['proxy_role_name']}"
     cust_role_arn = f"arn:aws:iam::{config['account_id'].replace('-', '')}:role/{config['role_name']}"
-
+    credentials_cache_path = config.get("credentials_cache_path", JSONFileCache.CACHE_DIR)
     # Step 1: Assume Role in Account Proxy and set up refreshable session
     session_proxy = Session()
     fetcher_proxy = AssumeRoleCredentialFetcher(
@@ -84,7 +84,7 @@ def setup_aws_client_with_proxy(config):
             'DurationSeconds': 3600,
             'RoleSessionName': 'ProxySession'
         },
-        cache=JSONFileCache()
+        cache=JSONFileCache(credentials_cache_path)
     )
 
     # Refreshable credentials for Account Proxy
@@ -105,7 +105,7 @@ def setup_aws_client_with_proxy(config):
             'RoleSessionName': 'TapHeapCustSession',
             'ExternalId': config['external_id']
         },
-        cache=JSONFileCache()
+        cache=JSONFileCache(credentials_cache_path)
     )
 
     # Set up refreshable session for Customer Account
