@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.0
+  * Changes JSONFileCache location [#22](https://github.com/singer-io/tap-heap/pull/22)
+
 ## 1.3.0
   * Adds proxy AWS Account support
   * [#21](https://github.com/singer-io/tap-heap/pull/21)
