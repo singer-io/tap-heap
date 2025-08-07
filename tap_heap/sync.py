@@ -158,7 +158,7 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
 
             # Finished syncing a file, write a bookmark
             state = singer.write_bookmark(state, table_name, 'file', files[i + len(batch) - 1])
-            singer.write_state(state)
+            record_queue.put(singer.StateMessage(value=state))
 
         # Signal the consumer process to stop
         LOGGER.info("Main thread is setting the terminate event after successful extraction!")
@@ -173,7 +173,6 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
     if records_streamed > 0:
         LOGGER.info('Sending activate version message %d', version)
         message = singer.ActivateVersionMessage(stream=table_name, version=version)
-        singer.write_message(message)
         record_queue.put(message)
 
     LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
