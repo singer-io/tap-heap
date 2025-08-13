@@ -160,20 +160,20 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
             state = singer.write_bookmark(state, table_name, 'file', files[i + len(batch) - 1])
             record_queue.put(singer.StateMessage(value=state))
 
-        # Signal the consumer process to stop
-        LOGGER.info("Main thread is setting the terminate event after successful extraction!")
-        terminate_event.set()
-
-        LOGGER.info("Waiting for all records in the Queue to sync.")
-        consumer.join()
-
-        # Clear any thread terminate event set earlier before stream extraction starts
-        terminate_event.clear()
-
     if records_streamed > 0:
         LOGGER.info('Sending activate version message %d', version)
         message = singer.ActivateVersionMessage(stream=table_name, version=version)
         record_queue.put(message)
+
+    # Signal the consumer process to stop
+    LOGGER.info("Main thread is setting the terminate event after successful extraction!")
+    terminate_event.set()
+
+    LOGGER.info("Waiting for all records in the Queue to sync.")
+    consumer.join()
+
+    # Clear any thread terminate event set earlier before stream extraction starts
+    terminate_event.clear()
 
     LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
     return records_streamed
