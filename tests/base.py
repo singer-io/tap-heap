@@ -1,4 +1,5 @@
 import os
+import random
 from tap_tester import connections, menagerie, runner, LOGGER
 from tap_tester.base_suite_tests.base_case import BaseCase
 
@@ -38,5 +39,7 @@ class TapHeapBaseCase(BaseCase):
         return {
             'start_date': self.start_date,
             'bucket': 'com-stitchdata-dev-tap-heap',
-            'account_id': '218546966473'
+            'account_id': '218546966473',
+            'role_name': f'stitch_heap_{random.randint(1000,9999)}',
+            'external_id': f'stitch_connection_{random.randint(1000,9999)}'
         }
