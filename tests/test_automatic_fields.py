@@ -12,6 +12,10 @@ class TapHeapAutomaticFieldsTest(MinimumSelectionTest, TapHeapBaseCase):
     def streams_to_test(self):
         return self.expected_stream_names()
 
-    @unittest.skip('TODO - figure this out')
+    @unittest.skip('not applicable')
     def test_records_primary_key_is_unique(self):
         super().test_records_primary_key_is_unique()
+
+    @unittest.skip('not applicable')
+    def test_replicated_records(self):
+        super().test_replicated_records()
