@@ -47,8 +47,7 @@ class TapHeapBookmarksTest(TapHeapBaseCase):
         self.assertGreater(replicated_row_count, 0, msg="failed to replicate any data: {}".format(record_count_by_stream))
 
         state = menagerie.get_state(conn_id)
-        print(f'the state is: {state}')
-        assertNotEqual(state, None, f'the state is not empty {state}')
+        self.assertNotEqual(state or {}, {}, f'the state should not be empty {state}')
 
         # Run another Sync
         sync_job_name = runner.run_sync_mode(self, conn_id)
