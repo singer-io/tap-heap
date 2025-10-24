@@ -6,6 +6,7 @@ import pytz
 import unittest
 
 from base import TapHeapBaseCase
+import utils_for_test as utils
 from tap_tester import runner, menagerie, connections, LOGGER
 from tap_tester.base_suite_tests.base_case import BaseCase
 
@@ -54,7 +55,23 @@ class TapHeapBookmarksTest(TapHeapBaseCase):
         exit_status = menagerie.get_exit_status(conn_id, sync_job_name)
         menagerie.verify_sync_exit_status(self, exit_status, sync_job_name)
 
-        # Check that we synced new records.
+        # Check that no new records were synced.
         record_count_by_stream = runner.examine_target_output_file(self, conn_id, self.streams_to_test(), self.expected_pks())
         replicated_row_count = reduce(lambda accum,c : accum + c, record_count_by_stream.values(), 0)
         self.assertEqual(replicated_row_count, 0, f'sync with bookmark should replicate 0 rows, but replicated {replicated_row_count} rows')
+
+        # Simulate a new dump from heap to s3
+        dump_id = utils.copy_latest_manifest_to_new_dump_id(self.get_properties()['bucket'])
+        try:
+            # Run another Sync
+            sync_job_name = runner.run_sync_mode(self, conn_id)
+            exit_status = menagerie.get_exit_status(conn_id, sync_job_name)
+            menagerie.verify_sync_exit_status(self, exit_status, sync_job_name)
+
+            # Check that we synced new records.
+            record_count_by_stream = runner.examine_target_output_file(self, conn_id, self.streams_to_test(), self.expected_pks())
+            replicated_row_count = reduce(lambda accum,c : accum + c, record_count_by_stream.values())
+            self.assertGreater(replicated_row_count, 0, msg="failed to replicate any data: {}".format(record_count_by_stream))
+        finally:
+            # clean up simulated heap sync
+            utils.delete_dump(self.get_properties()['bucket'], dump_id)
