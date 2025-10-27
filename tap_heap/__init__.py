@@ -93,6 +93,8 @@ def main():
         do_discover(args.config)
     elif args.properties:
         do_sync(args.config, args.properties, args.state)
+    elif args.catalog:
+        do_sync(args.config, args.catalog.to_dict(), args.state)
 
 if __name__ == '__main__':
     main()

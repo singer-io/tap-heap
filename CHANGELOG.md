@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.1
+  * Allows the use of --catalog as opposed to just --properties [#24](https://github.com/singer-io/tap-heap/pull/24)
+
 ## 1.4.0
   * Changes JSONFileCache location [#22](https://github.com/singer-io/tap-heap/pull/22)
 
