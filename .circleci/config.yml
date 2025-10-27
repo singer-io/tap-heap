@@ -26,6 +26,7 @@ jobs:
           command: |
             source ~/.virtualenvs/tap-heap/bin/activate
             pytest tests/unittests
+      - add_ssh_keys
       - run:
           name: 'Integration Tests'
           command: |
@@ -40,7 +41,9 @@ workflows:
   commit:
     jobs:
       - build:
-          context: circleci-user
+          context:
+            - circleci-user
+            - tap-tester-user
   build_daily:
     triggers:
       - schedule:
