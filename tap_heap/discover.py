@@ -1,7 +1,10 @@
 from collections import defaultdict
+import singer
 from singer import metadata
 from tap_heap import manifest
 from tap_heap.schema import generate_fake_schema
+
+LOGGER = singer.get_logger()
 
 def discover_streams(bucket):
     streams = []
@@ -9,24 +12,38 @@ def discover_streams(bucket):
     manifests = manifest.generate_manifests(bucket)
 
     table_name_to_columns = defaultdict(set)
-    table_name_to_incremental = {}
+    table_name_to_incremental_flags = defaultdict(set)
 
     for all_table_manifests in manifests.values():
         for table_name, table_manifest in all_table_manifests.items():
-            table_name_to_columns[table_name].update(set(table_manifest['columns']))
-            table_name_to_incremental[table_name] = table_manifest.get('incremental', False)
+            table_name_to_columns[table_name].update(table_manifest['columns'])
+            flag = table_manifest.get('incremental')
+            if flag is not None:
+                table_name_to_incremental_flags[table_name].add(flag)
 
     for table_name, columns in table_name_to_columns.items():
         schema = generate_fake_schema(columns)
         mdata = load_metadata(table_name, schema)
 
-        if table_name_to_incremental.get(table_name, False):
-            mdata = metadata.write(mdata, (), 'forced-replication-method', 'INCREMENTAL')
+        flags = table_name_to_incremental_flags.get(table_name, set())
+        if not flags:
+            replication = 'FULL_TABLE'
+        elif flags == {True}:
+            replication = 'INCREMENTAL'
+        elif flags == {False}:
+            replication = 'FULL_TABLE'
         else:
-            mdata = metadata.write(mdata, (), 'forced-replication-method', 'FULL_TABLE')
+            LOGGER.warning("Conflicting incremental flags for %s: %s. Defaulting to INCREMENTAL.", table_name, flags)
+            replication = 'INCREMENTAL'
 
-        streams.append({'stream': table_name, 'tap_stream_id': table_name,
-                        'schema': schema, 'metadata': metadata.to_list(mdata)})
+        mdata = metadata.write(mdata, (), 'forced-replication-method', replication)
+
+        streams.append({
+            'stream': table_name,
+            'tap_stream_id': table_name,
+            'schema': schema,
+            'metadata': metadata.to_list(mdata)
+        })
 
     return streams
 
