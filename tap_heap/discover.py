@@ -33,7 +33,8 @@ def discover_streams(bucket):
         elif flags == {False}:
             replication = 'FULL_TABLE'
         else:
-            LOGGER.warning("Conflicting incremental flags for %s: %s. Defaulting to INCREMENTAL.", table_name, flags)
+            LOGGER.warning("Conflicting incremental flags for %s: %s. Defaulting to \
+                           INCREMENTAL.", table_name, flags)
             replication = 'INCREMENTAL'
 
         mdata = metadata.write(mdata, (), 'forced-replication-method', replication)
