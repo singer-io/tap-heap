@@ -9,14 +9,24 @@ def discover_streams(bucket):
     manifests = manifest.generate_manifests(bucket)
 
     table_name_to_columns = defaultdict(set)
+    table_name_to_incremental = {}
+
     for all_table_manifests in manifests.values():
         for table_name, table_manifest in all_table_manifests.items():
             table_name_to_columns[table_name].update(set(table_manifest['columns']))
+            table_name_to_incremental[table_name] = table_manifest.get('incremental', False)
 
     for table_name, columns in table_name_to_columns.items():
         schema = generate_fake_schema(columns)
+        mdata = load_metadata(table_name, schema)
+
+        if table_name_to_incremental.get(table_name, False):
+            mdata = metadata.write(mdata, (), 'forced-replication-method', 'INCREMENTAL')
+        else:
+            mdata = metadata.write(mdata, (), 'forced-replication-method', 'FULL_TABLE')
+
         streams.append({'stream': table_name, 'tap_stream_id': table_name,
-                        'schema': schema, 'metadata': load_metadata(table_name, schema)})
+                        'schema': schema, 'metadata': metadata.to_list(mdata)})
 
     return streams
 
@@ -42,4 +52,4 @@ def load_metadata(table_name, schema):
         else:
             mdata = metadata.write(mdata, ('properties', field_name), 'inclusion', 'available')
 
-    return metadata.to_list(mdata)
+    return mdata
