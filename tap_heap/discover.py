@@ -26,12 +26,10 @@ def discover_streams(bucket):
         mdata = load_metadata(table_name, schema)
 
         flags = table_name_to_incremental_flags.get(table_name, set())
-        if not flags:
+        if not flags or flags == {False}:
             replication = 'FULL_TABLE'
         elif flags == {True}:
             replication = 'INCREMENTAL'
-        elif flags == {False}:
-            replication = 'FULL_TABLE'
         else:
             LOGGER.warning("Conflicting incremental flags for %s: %s. Defaulting to \
                            INCREMENTAL.", table_name, flags)
