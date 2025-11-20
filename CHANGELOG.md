@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.5.0
+  * Added forced-replication-method metadata field [#26](https://github.com/singer-io/tap-heap/pull/26)
+
 ## 1.4.1
   * Allows the use of --catalog as opposed to just --properties [#24](https://github.com/singer-io/tap-heap/pull/24)
 
