@@ -18,7 +18,7 @@ def discover_streams(bucket):
         for table_name, table_manifest in all_table_manifests.items():
             table_name_to_columns[table_name].update(table_manifest['columns'])
             flag = table_manifest.get('incremental')
-            if flag is not None:
+            if flag:
                 table_name_to_incremental_flags[table_name].add(flag)
 
     for table_name, columns in table_name_to_columns.items():
