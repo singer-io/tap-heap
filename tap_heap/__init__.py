@@ -64,6 +64,15 @@ def do_sync(config, catalog, state):
     LOGGER.info('Done syncing.')
 
 
+def transform_state(state):
+    bookmarks = state.get('bookmarks', {})
+    for tap_stream_id, stream_bookmarks in bookmarks.items():
+        if version := stream_bookmarks.get('version'):
+            state = singer.set_version(state, tap_stream_id, version)
+            state = singer.clear_bookmark(state, tap_stream_id, 'version')
+    return state
+
+
 @singer.utils.handle_top_exception(LOGGER)
 def main():
     args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
@@ -92,9 +101,9 @@ def main():
     if args.discover:
         do_discover(args.config)
     elif args.properties:
-        do_sync(args.config, args.properties, args.state)
+        do_sync(args.config, args.properties, transform_state(args.state))
     elif args.catalog:
-        do_sync(args.config, args.catalog.to_dict(), args.state)
+        do_sync(args.config, args.catalog.to_dict(), transform_state(args.state))
 
 if __name__ == '__main__':
     main()
