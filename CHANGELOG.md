@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0
+## 1.5.0
   * Update state reads/writes to move `version` out of the `bookmarks` key and into a top-level `activate_versions` key in state. [#28](https://github.com/singer-io/tap-heap/pull/28)
 
 ## 1.4.1
