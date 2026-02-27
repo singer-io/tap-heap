@@ -95,7 +95,7 @@ class TestFilterManifests(unittest.TestCase):
                     "file": "sync_124/table1/part-00001-GUID.avro",
                 }
             },
-            "activate_versions": {
+            "versions": {
                 "table1": 1607032341846
             }
         }
@@ -122,7 +122,7 @@ class TestFilterManifests(unittest.TestCase):
                     "file": "sync_124/table1/part-00001-GUID.avro",
                 }
             },
-            "activate_versions": {
+            "versions": {
                 "table1": 1607032341846
             }
         }
@@ -151,7 +151,7 @@ class TestFilterManifests(unittest.TestCase):
                     "file": "sync_124/table1/part-00001-GUID.avro",
                 }
             },
-            "activate_versions": {
+            "versions": {
                 "table1": 1607032341846
             }
         }
@@ -204,7 +204,7 @@ class TestGetFilesToSync(unittest.TestCase):
                     "file": "sync_123/file4",
                 }
             },
-            "activate_versions": {
+            "versions": {
                 "table1": 1607032341846
             }
         }

@@ -66,7 +66,7 @@ def do_sync(config, catalog, state):
 
 def transform_state(state):
     '''Removes the `version` key from bookmarks and adds it to a new top-level
-    `activate_versions` key in state'''
+    `versions` key in state'''
     bookmarks = state.get('bookmarks', {})
     for tap_stream_id in bookmarks:
         if version := singer.get_bookmark(state, tap_stream_id, 'version'):
