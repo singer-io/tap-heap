@@ -49,6 +49,7 @@ class TapHeapBookmarksTest(TapHeapBaseCase):
 
         state = menagerie.get_state(conn_id)
         self.assertNotEqual(state or {}, {}, f'the state should not be empty {state}')
+        self.assertTrue(state.get('versions') is not None)
 
         # Run another Sync
         sync_job_name = runner.run_sync_mode(self, conn_id)

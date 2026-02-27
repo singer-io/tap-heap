@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.5.0
+  * Update state reads/writes to move `version` out of the `bookmarks` key and into a top-level `versions` key in state. [#28](https://github.com/singer-io/tap-heap/pull/28)
+
 ## 1.4.1
   * Allows the use of --catalog as opposed to just --properties [#24](https://github.com/singer-io/tap-heap/pull/24)
 
