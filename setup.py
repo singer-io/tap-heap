@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='tap-heap',
-      version='1.5.0',
+      version='1.5.1',
       description='Singer.io tap for extracting Heap data from Avro files in S3',
       author='Stitch',
       url='https://singer.io',
@@ -14,7 +14,8 @@ setup(name='tap-heap',
           'singer-encodings==0.5.0',
           'singer-python==6.8.0',
           'python-snappy==0.7.3',
-          'fastavro==1.11.1'
+          'fastavro==1.11.1',
+        'requests>=2.33.0'
       ],
       extras_require={
           'dev': [
