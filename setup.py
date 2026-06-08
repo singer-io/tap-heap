@@ -14,7 +14,7 @@ setup(name='tap-heap',
           'singer-encodings==0.5.0',
           'singer-python==6.8.0',
           'python-snappy==0.7.3',
-          'fastavro==1.12.2'
+          'fastavro==1.12.0'
       ],
       extras_require={
           'dev': [
