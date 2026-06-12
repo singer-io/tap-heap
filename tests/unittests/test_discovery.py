@@ -127,7 +127,7 @@ class TestApplyAccessChecks(unittest.TestCase):
     @patch("tap_heap.discover._check_stream_access")
     def test_partial_access_excludes_forbidden_streams(self, mock_check):
         """Inaccessible streams are excluded from the result"""
-        mock_check.side_effect = lambda bucket, table, manifests: table != "sessions"
+        mock_check.side_effect = lambda bucket, table, manifests, **kwargs: table != "sessions"
 
         result = _apply_access_checks(self.bucket, self.streams, self.manifests)
         self.assertEqual(len(result), 2)
@@ -150,7 +150,7 @@ class TestApplyAccessChecks(unittest.TestCase):
     @patch("tap_heap.discover._check_stream_access")
     def test_partial_access_logs_warning(self, mock_check):
         """Warning is logged for excluded streams"""
-        mock_check.side_effect = lambda bucket, table, manifests: table != "events"
+        mock_check.side_effect = lambda bucket, table, manifests, **kwargs: table != "events"
 
         with patch("tap_heap.discover.LOGGER") as mock_logger:
             result = _apply_access_checks(self.bucket, self.streams, self.manifests)
@@ -180,7 +180,7 @@ class TestDiscoverStreamsWithAccessChecks(unittest.TestCase):
                 }
             }
         }
-        mock_check.side_effect = lambda bucket, table, manifests: table == "users"
+        mock_check.side_effect = lambda bucket, table, manifests, **kwargs: table == "users"
 
         streams = discover_streams("test-bucket")
         self.assertEqual(len(streams), 1)
