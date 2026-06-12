@@ -5,6 +5,7 @@ from tap_tester.base_suite_tests.base_case import BaseCase
 
 class TapHeapBaseCase(BaseCase):
     start_date = "2021-04-07T00:00:00Z"
+    IS_FORBIDDEN_STREAM = "is-forbidden-stream"
 
     @staticmethod
     def tap_name():
