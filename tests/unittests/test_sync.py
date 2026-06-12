@@ -93,8 +93,10 @@ class TestFilterManifests(unittest.TestCase):
             "bookmarks": {
                 "table1": {
                     "file": "sync_124/table1/part-00001-GUID.avro",
-                    "version": 1607032341846
                 }
+            },
+            "versions": {
+                "table1": 1607032341846
             }
         }
         actual_value = filter_manifests_to_sync(self.manifests, "table1", state)
@@ -118,8 +120,10 @@ class TestFilterManifests(unittest.TestCase):
             "bookmarks": {
                 "table1": {
                     "file": "sync_124/table1/part-00001-GUID.avro",
-                    "version": 1607032341846
                 }
+            },
+            "versions": {
+                "table1": 1607032341846
             }
         }
         actual_value = filter_manifests_to_sync(self.manifests, "table1", state)
@@ -145,8 +149,10 @@ class TestFilterManifests(unittest.TestCase):
             "bookmarks": {
                 "table1": {
                     "file": "sync_124/table1/part-00001-GUID.avro",
-                    "version": 1607032341846
                 }
+            },
+            "versions": {
+                "table1": 1607032341846
             }
         }
         actual_value = filter_manifests_to_sync(self.manifests, "table1", state)
@@ -196,8 +202,10 @@ class TestGetFilesToSync(unittest.TestCase):
             "bookmarks": {
                 "table1": {
                     "file": "sync_123/file4",
-                    "version": 1607032341846
                 }
+            },
+            "versions": {
+                "table1": 1607032341846
             }
         }
         actual_value = get_files_to_sync(self.manifests, "table1", state, "bucket1")

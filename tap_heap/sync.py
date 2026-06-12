@@ -34,7 +34,7 @@ def filter_manifests_to_sync(manifests, table_name, state):
 
     bookmark = singer.get_bookmark(state, table_name, 'file')
     # bookmark = "sync_{DUMP_ID}/{TABLE_NAME}/part-00016-{GUID}.avro"
-    bookmarked_version = singer.get_bookmark(state, table_name, 'version')
+    bookmarked_version = singer.get_version(state, table_name)
     if bookmark and bookmarked_version:
         bookmarked_dump_id = int(bookmark.split('/')[0].replace('sync_', ''))
 
@@ -78,7 +78,7 @@ def key_fn(key):
 
 def get_files_to_sync(table_manifests, table_name, state, bucket):
     bookmark = singer.get_bookmark(state, table_name, 'file')
-    bookmarked_version = singer.get_bookmark(state, table_name, 'version')
+    bookmarked_version = singer.get_version(state, table_name)
 
     # Get flattened file names and remove the prefix
     files = sorted([remove_prefix(file_name, bucket)
@@ -118,7 +118,7 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
 
     records_streamed = 0
 
-    version = singer.get_bookmark(state, table_name, 'version')
+    version = singer.get_version(state, table_name)
 
     if should_create_new_version:
         # Set version so it can be used for an activate version message
@@ -127,7 +127,7 @@ def sync_stream(bucket, state, stream, manifests, batch_size=5):    # pylint: di
         LOGGER.info('Detected full sync for stream table name %s, setting version to %d',
                     table_name,
                     version)
-        state = singer.write_bookmark(state, table_name, 'version', version)
+        state = singer.set_version(state, table_name, version)
         singer.write_state(state)
 
     with futures.ProcessPoolExecutor(max_workers=batch_size) as executor:
