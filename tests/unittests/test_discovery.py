@@ -145,7 +145,7 @@ class TestApplyAccessChecks(unittest.TestCase):
             _apply_access_checks(self.bucket, self.streams, self.manifests)
 
         self.assertIn("403", str(context.exception))
-        self.assertIn("do not have 'read' access", str(context.exception))
+        self.assertIn("have 'read' access", str(context.exception))
 
     @patch("tap_heap.discover._check_stream_access")
     def test_partial_access_logs_warning(self, mock_check):

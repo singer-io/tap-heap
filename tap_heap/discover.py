@@ -39,7 +39,7 @@ def _check_stream_access(bucket, table_name, manifests):
     Returns True if accessible, False if a 403 AccessDenied error is raised.
     """
     # Find the first file for this table to test access
-    for dump_id, dump_manifest in manifests.items():
+    for _, dump_manifest in manifests.items():
         table_manifest = dump_manifest.get(table_name)
         if table_manifest and table_manifest.get('files'):
             test_file = table_manifest['files'][0]
@@ -78,11 +78,13 @@ def _apply_access_checks(bucket, streams, manifests):
     if inaccessible_streams:
         if not accessible_streams:
             raise HeapForbiddenError(
-                "HTTP-error-code: 403, Error: The account credentials supplied do not have 'read' access to any "
-                "of the streams supported by the tap. Data collection cannot be initiated due to lack of permissions."
+                "HTTP-error-code: 403, Error: The credentials do not "
+                "have 'read' access to any of the streams supported "
+                "by the tap. Data collection cannot be initiated."
             )
         LOGGER.warning(
-            "The account credentials supplied do not have 'read' access to the following stream(s): %s. "
+            "The credentials do not have 'read' access to the "
+            "following stream(s): %s. "
             "These streams have been excluded from the catalog.",
             ", ".join(inaccessible_streams),
         )
