@@ -33,11 +33,14 @@ def discover_streams(bucket):
     return streams
 
 
-def _check_stream_access(bucket, table_name, manifests):
+def _check_stream_access(bucket, table_name, manifests, s3_client=None):
     """
     Verify read access to a stream's data files in S3.
     Returns True if accessible, False if a 403 AccessDenied error is raised.
     """
+    if s3_client is None:
+        s3_client = boto3.client('s3')
+
     # Find the first file for this table to test access
     for _, dump_manifest in manifests.items():
         table_manifest = dump_manifest.get(table_name)
@@ -47,7 +50,6 @@ def _check_stream_access(bucket, table_name, manifests):
             path_prefix = f's3://{bucket}/'
             test_file = test_file.replace(path_prefix, '')
             try:
-                s3_client = boto3.client('s3')
                 s3_client.head_object(Bucket=bucket, Key=test_file)
                 return True
             except ClientError as e:
