@@ -144,7 +144,7 @@ class TestApplyAccessChecks(unittest.TestCase):
         with self.assertRaises(HeapForbiddenError) as context:
             _apply_access_checks(self.bucket, self.streams, self.manifests)
 
-        self.assertIn("403", str(context.exception))
+        self.assertIn("AccessDenied", str(context.exception))
         self.assertIn("have 'read' access", str(context.exception))
 
     @patch("tap_heap.discover._check_stream_access")

@@ -36,12 +36,13 @@ class TapHeapBaseCase(BaseCase):
             }
         }
 
-    def expected_stream_names(self):
+    @classmethod
+    def expected_stream_names(cls):
         """The expected stream names, excluding forbidden streams."""
         return {
             stream_name
-            for stream_name, metadata in self.expected_metadata().items()
-            if not metadata.get(self.IS_FORBIDDEN_STREAM, False)
+            for stream_name, md in cls.expected_metadata().items()
+            if not md.get(cls.IS_FORBIDDEN_STREAM, False)
         }
 
     def get_properties(self):

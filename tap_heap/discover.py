@@ -81,8 +81,8 @@ def _apply_access_checks(bucket, streams, manifests):
     if inaccessible_streams:
         if not accessible_streams:
             raise HeapForbiddenError(
-                "HTTP-error-code: 403, Error: The credentials do not "
-                "have 'read' access to any of the streams supported "
+                "S3 AccessDenied: The credentials do not have "
+                "'read' access to any of the streams supported "
                 "by the tap. Data collection cannot be initiated."
             )
         LOGGER.warning(
