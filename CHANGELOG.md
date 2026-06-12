@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0
+  * Exclude inaccessible streams (403) from catalog during discovery [#25](https://github.com/singer-io/tap-heap/pull/25)
+  * Added unit tests for discovery access checks
+
 ## 1.4.1
   * Allows the use of --catalog as opposed to just --properties [#24](https://github.com/singer-io/tap-heap/pull/24)
 
