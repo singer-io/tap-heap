@@ -67,12 +67,13 @@ def _apply_access_checks(bucket, streams, manifests):
     Probe each stream for read access and remove inaccessible streams.
     Raises HeapForbiddenError if no streams are accessible.
     """
+    s3_client = boto3.client('s3')
     inaccessible_streams = []
     accessible_streams = []
 
     for stream in streams:
         table_name = stream['tap_stream_id']
-        if _check_stream_access(bucket, table_name, manifests):
+        if _check_stream_access(bucket, table_name, manifests, s3_client=s3_client):
             accessible_streams.append(stream)
         else:
             inaccessible_streams.append(table_name)
