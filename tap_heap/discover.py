@@ -55,6 +55,11 @@ def _check_stream_access(bucket, table_name, manifests, s3_client=None):
             except ClientError as e:
                 error_code = e.response.get('Error', {}).get('Code', '')
                 if error_code in ('403', 'AccessDenied'):
+                    LOGGER.warning(
+                        "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+                        table_name,
+                        str(e),
+                    )
                     return False
                 # Re-raise non-permission errors
                 raise
@@ -78,17 +83,14 @@ def _apply_access_checks(bucket, streams, manifests):
         else:
             inaccessible_streams.append(table_name)
 
+    if not accessible_streams:
+        raise HeapForbiddenError(
+            "No streams are accessible. Ensure the credentials have read permission for at least one stream."
+        )
+
     if inaccessible_streams:
-        if not accessible_streams:
-            raise HeapForbiddenError(
-                "S3 AccessDenied: The credentials do not have "
-                "'read' access to any of the streams supported "
-                "by the tap. Data collection cannot be initiated."
-            )
         LOGGER.warning(
-            "The credentials do not have 'read' access to the "
-            "following stream(s): %s. "
-            "These streams have been excluded from the catalog.",
+            "These streams have been excluded due to HTTP-Error-Code:403 Forbidden: %s",
             ", ".join(inaccessible_streams),
         )
 

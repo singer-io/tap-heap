@@ -144,8 +144,8 @@ class TestApplyAccessChecks(unittest.TestCase):
         with self.assertRaises(HeapForbiddenError) as context:
             _apply_access_checks(self.bucket, self.streams, self.manifests)
 
-        self.assertIn("AccessDenied", str(context.exception))
-        self.assertIn("have 'read' access", str(context.exception))
+        self.assertIn("No streams are accessible", str(context.exception))
+        self.assertIn("read permission", str(context.exception))
 
     @patch("tap_heap.discover._check_stream_access")
     def test_partial_access_logs_warning(self, mock_check):
@@ -156,7 +156,7 @@ class TestApplyAccessChecks(unittest.TestCase):
             result = _apply_access_checks(self.bucket, self.streams, self.manifests)
             mock_logger.warning.assert_called_once()
             warning_msg = mock_logger.warning.call_args[0][0]
-            self.assertIn("do not have 'read' access", warning_msg)
+            self.assertIn("excluded due to HTTP-Error-Code:403", warning_msg)
 
 
 class TestDiscoverStreamsWithAccessChecks(unittest.TestCase):
