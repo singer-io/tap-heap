@@ -85,7 +85,8 @@ def _apply_access_checks(bucket, streams, manifests):
 
     if not accessible_streams:
         raise HeapForbiddenError(
-            "No streams are accessible. Ensure the credentials have read permission for at least one stream."
+            "No streams are accessible. Ensure the credentials "
+            "have read permission for at least one stream."
         )
 
     if inaccessible_streams:
