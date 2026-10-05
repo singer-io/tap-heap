@@ -1,8 +1,11 @@
 # Changelog
 
-## 1.5.1
+## 1.6.1
   * Exclude inaccessible streams (403) from catalog during discovery [#30](https://github.com/singer-io/tap-heap/pull/30)
   * Added unit tests for discovery access checks
+
+## 1.6.0
+  * Added forced-replication-method metadata field [#26](https://github.com/singer-io/tap-heap/pull/26)
 
 ## 1.5.0
   * Update state reads/writes to move `version` out of the `bookmarks` key and into a top-level `versions` key in state. [#28](https://github.com/singer-io/tap-heap/pull/28)
