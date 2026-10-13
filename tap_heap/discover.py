@@ -76,7 +76,8 @@ def _check_stream_access(bucket, table_name, manifests, s3_client=None):
                     error_code = e.response.get('Error', {}).get('Code', '')
                     if error_code in ('403', 'AccessDenied'):
                         LOGGER.warning(
-                            "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+                            "Unauthorized Stream: %s, excluding from catalog. "
+                            "HTTP-Error-Message:'%s'",
                             table_name,
                             str(e),
                         )
