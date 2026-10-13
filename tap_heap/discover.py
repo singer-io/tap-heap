@@ -58,34 +58,31 @@ def discover_streams(bucket):
 
 def _check_stream_access(bucket, table_name, manifests, s3_client=None):
     """
-    Verify read access to a stream's data files in S3.
-    Returns True if accessible, False if a 403 AccessDenied error is raised.
+    Verify read access to every data file for a stream in S3.
+    Returns False if any file raises a 403 AccessDenied error.
     """
     if s3_client is None:
         s3_client = boto3.client('s3')
 
-    # Find the first file for this table to test access
-    for _, dump_manifest in manifests.items():
+    for dump_manifest in manifests.values():
         table_manifest = dump_manifest.get(table_name)
         if table_manifest and table_manifest.get('files'):
-            test_file = table_manifest['files'][0]
-            # Remove the s3://bucket/ prefix if present
-            path_prefix = f's3://{bucket}/'
-            test_file = test_file.replace(path_prefix, '')
-            try:
-                s3_client.head_object(Bucket=bucket, Key=test_file)
-                return True
-            except ClientError as e:
-                error_code = e.response.get('Error', {}).get('Code', '')
-                if error_code in ('403', 'AccessDenied'):
-                    LOGGER.warning(
-                        "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
-                        table_name,
-                        str(e),
-                    )
-                    return False
-                # Re-raise non-permission errors
-                raise
+            for test_file in table_manifest['files']:
+                path_prefix = f's3://{bucket}/'
+                test_file = test_file.replace(path_prefix, '')
+                try:
+                    s3_client.head_object(Bucket=bucket, Key=test_file)
+                except ClientError as e:
+                    error_code = e.response.get('Error', {}).get('Code', '')
+                    if error_code in ('403', 'AccessDenied'):
+                        LOGGER.warning(
+                            "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+                            table_name,
+                            str(e),
+                        )
+                        return False
+                    # Re-raise non-permission errors
+                    raise
     # If no files found for this table, consider it accessible (schema-only)
     return True
 
@@ -95,6 +92,9 @@ def _apply_access_checks(bucket, streams, manifests):
     Probe each stream for read access and remove inaccessible streams.
     Raises HeapForbiddenError if no streams are accessible.
     """
+    if not streams:
+        return []
+
     s3_client = boto3.client('s3')
     inaccessible_streams = []
     accessible_streams = []

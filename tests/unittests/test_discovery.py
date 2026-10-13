@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 from botocore.exceptions import ClientError
+from singer import metadata
 
 from tap_heap.discover import discover_streams, _check_stream_access, _apply_access_checks
 from tap_heap.exceptions import HeapForbiddenError
@@ -38,6 +39,42 @@ class TestCheckStreamAccess(unittest.TestCase):
         self.assertTrue(result)
         mock_s3.head_object.assert_called_once_with(
             Bucket="test-bucket", Key="sync_100/users/part-00000.avro"
+        )
+
+    @patch("tap_heap.discover.boto3.client")
+    def test_later_inaccessible_file_returns_false(self, mock_boto_client):
+        """A denied file in a later dump excludes the stream"""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+        mock_s3.head_object.side_effect = [
+            {},
+            ClientError(
+                {"Error": {"Code": "403", "Message": "Forbidden"}},
+                "HeadObject",
+            ),
+        ]
+        manifests = {
+            100: {
+                "users": {
+                    "files": ["s3://test-bucket/sync_100/users/part-00000.avro"],
+                }
+            },
+            101: {
+                "users": {
+                    "files": ["s3://test-bucket/sync_101/users/part-00000.avro"],
+                }
+            },
+        }
+
+        result = _check_stream_access(self.bucket, "users", manifests)
+
+        self.assertFalse(result)
+        self.assertEqual(
+            [call.kwargs["Key"] for call in mock_s3.head_object.call_args_list],
+            [
+                "sync_100/users/part-00000.avro",
+                "sync_101/users/part-00000.avro",
+            ],
         )
 
     @patch("tap_heap.discover.boto3.client")
@@ -211,6 +248,13 @@ class TestDiscoverStreamsWithAccessChecks(unittest.TestCase):
     """Integration tests for discover_streams with access checking"""
 
     @patch("tap_heap.discover._check_stream_access")
+    @patch("tap_heap.discover.manifest.generate_manifests", return_value={})
+    def test_discover_empty_manifests_returns_no_streams(self, mock_manifests, mock_check):
+        """An empty catalog is not misreported as an authorization failure"""
+        self.assertEqual(discover_streams("test-bucket"), [])
+        mock_check.assert_not_called()
+
+    @patch("tap_heap.discover._check_stream_access")
     @patch("tap_heap.discover.manifest.generate_manifests")
     def test_discover_excludes_inaccessible_streams(self, mock_manifests, mock_check):
         """discover_streams excludes streams that fail access check"""
@@ -256,6 +300,16 @@ class TestDiscoverStreamsWithAccessChecks(unittest.TestCase):
 
         streams = discover_streams("test-bucket")
         self.assertEqual(len(streams), 2)
+        users_metadata = metadata.to_map(
+            next(stream["metadata"] for stream in streams if stream["tap_stream_id"] == "users")
+        )
+        self.assertEqual(metadata.get(users_metadata, (), "table-key-properties"), ["user_id"])
+        self.assertEqual(
+            metadata.get(users_metadata, (), "forced-replication-method"), "FULL_TABLE"
+        )
+        self.assertEqual(
+            metadata.get(users_metadata, ("properties", "user_id"), "inclusion"), "automatic"
+        )
 
     @patch("tap_heap.discover._check_stream_access")
     @patch("tap_heap.discover.manifest.generate_manifests")
