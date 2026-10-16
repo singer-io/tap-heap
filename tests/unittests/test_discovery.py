@@ -42,6 +42,53 @@ class TestCheckStreamAccess(unittest.TestCase):
         )
 
     @patch("tap_heap.discover.boto3.client")
+    def test_denied_file_before_latest_full_dump_is_ignored(self, mock_boto_client):
+        """An inaccessible dump excluded by sync does not exclude its stream"""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+
+        def head_object(**kwargs):
+            if kwargs["Key"] == "sync_100/users/part-00000.avro":
+                raise ClientError(
+                    {"Error": {"Code": "403", "Message": "Forbidden"}},
+                    "HeadObject",
+                )
+            return {}
+
+        mock_s3.head_object.side_effect = head_object
+        manifests = {
+            100: {
+                "users": {
+                    "files": ["s3://test-bucket/sync_100/users/part-00000.avro"],
+                    "incremental": True,
+                }
+            },
+            101: {
+                "users": {
+                    "files": ["s3://test-bucket/sync_101/users/part-00000.avro"],
+                    "incremental": False,
+                }
+            },
+            102: {
+                "users": {
+                    "files": ["s3://test-bucket/sync_102/users/part-00000.avro"],
+                    "incremental": True,
+                }
+            },
+        }
+
+        result = _check_stream_access(self.bucket, "users", manifests)
+
+        self.assertTrue(result)
+        self.assertEqual(
+            [call.kwargs["Key"] for call in mock_s3.head_object.call_args_list],
+            [
+                "sync_101/users/part-00000.avro",
+                "sync_102/users/part-00000.avro",
+            ],
+        )
+
+    @patch("tap_heap.discover.boto3.client")
     def test_later_inaccessible_file_returns_false(self, mock_boto_client):
         """A denied file in a later dump excludes the stream"""
         mock_s3 = MagicMock()

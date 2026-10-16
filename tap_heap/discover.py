@@ -58,13 +58,21 @@ def discover_streams(bucket):
 
 def _check_stream_access(bucket, table_name, manifests, s3_client=None):
     """
-    Verify read access to every data file for a stream in S3.
-    Returns False if any file raises a 403 AccessDenied error.
+    Verify read access to files sync may select for a stream in S3.
+    Returns False if any selected file raises a 403 AccessDenied error.
     """
     if s3_client is None:
         s3_client = boto3.client('s3')
 
-    for dump_manifest in manifests.values():
+    full_table_dumps = [
+        dump_id for dump_id, dump_manifest in manifests.items()
+        if dump_manifest.get(table_name, {}).get('incremental') is False
+    ]
+    minimum_dump_id = max(full_table_dumps) if full_table_dumps else 0
+
+    for dump_id, dump_manifest in manifests.items():
+        if dump_id < minimum_dump_id:
+            continue
         table_manifest = dump_manifest.get(table_name)
         if table_manifest and table_manifest.get('files'):
             for test_file in table_manifest['files']:
