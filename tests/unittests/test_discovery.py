@@ -89,6 +89,50 @@ class TestCheckStreamAccess(unittest.TestCase):
         )
 
     @patch("tap_heap.discover.boto3.client")
+    def test_denied_file_at_or_before_bookmark_is_ignored(self, mock_boto_client):
+        """Files already covered by the bookmark are not access-probed"""
+        mock_s3 = MagicMock()
+        mock_boto_client.return_value = mock_s3
+        mock_s3.head_object.return_value = {}
+        manifests = {
+            101: {
+                "users": {
+                    "files": [
+                        "s3://test-bucket/sync_101/users/part-00000.avro",
+                        "s3://test-bucket/sync_101/users/part-00001.avro",
+                        "s3://test-bucket/sync_101/users/part-00002.avro",
+                    ],
+                    "incremental": False,
+                }
+            }
+        }
+        def head_object(**kwargs):
+            if kwargs["Key"] == "sync_101/users/part-00000.avro":
+                raise ClientError(
+                    {"Error": {"Code": "403", "Message": "Forbidden"}},
+                    "HeadObject",
+                )
+            return {}
+
+        mock_s3.head_object.side_effect = head_object
+        state = {
+            "bookmarks": {
+                "users": {"file": "sync_101/users/part-00001.avro"}
+            },
+            "versions": {"users": 123},
+        }
+
+        result = _check_stream_access(
+            self.bucket, "users", manifests, state=state
+        )
+
+        self.assertTrue(result)
+        self.assertEqual(
+            [call.kwargs["Key"] for call in mock_s3.head_object.call_args_list],
+            ["sync_101/users/part-00002.avro"],
+        )
+
+    @patch("tap_heap.discover.boto3.client")
     def test_later_inaccessible_file_returns_false(self, mock_boto_client):
         """A denied file in a later dump excludes the stream"""
         mock_s3 = MagicMock()

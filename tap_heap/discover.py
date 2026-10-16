@@ -9,11 +9,12 @@ from singer import metadata
 from tap_heap import manifest
 from tap_heap.exceptions import HeapForbiddenError
 from tap_heap.schema import generate_fake_schema
+from tap_heap.sync import filter_manifests_to_sync, get_files_to_sync
 
 LOGGER = singer.get_logger()
 
 
-def discover_streams(bucket):
+def discover_streams(bucket, state=None):
     streams = []
 
     manifests = manifest.generate_manifests(bucket)
@@ -51,12 +52,12 @@ def discover_streams(bucket):
             'metadata': metadata.to_list(mdata)
         })
 
-    streams = _apply_access_checks(bucket, streams, manifests)
+    streams = _apply_access_checks(bucket, streams, manifests, state)
 
     return streams
 
 
-def _check_stream_access(bucket, table_name, manifests, s3_client=None):
+def _check_stream_access(bucket, table_name, manifests, s3_client=None, state=None):
     """
     Verify read access to files sync may select for a stream in S3.
     Returns False if any selected file raises a 403 AccessDenied error.
@@ -64,39 +65,30 @@ def _check_stream_access(bucket, table_name, manifests, s3_client=None):
     if s3_client is None:
         s3_client = boto3.client('s3')
 
-    full_table_dumps = [
-        dump_id for dump_id, dump_manifest in manifests.items()
-        if dump_manifest.get(table_name, {}).get('incremental') is False
-    ]
-    minimum_dump_id = max(full_table_dumps) if full_table_dumps else 0
+    state = state or {}
+    table_manifests, _ = filter_manifests_to_sync(manifests, table_name, state)
+    files_to_check = get_files_to_sync(table_manifests, table_name, state, bucket)
 
-    for dump_id, dump_manifest in manifests.items():
-        if dump_id < minimum_dump_id:
-            continue
-        table_manifest = dump_manifest.get(table_name)
-        if table_manifest and table_manifest.get('files'):
-            for test_file in table_manifest['files']:
-                path_prefix = f's3://{bucket}/'
-                test_file = test_file.replace(path_prefix, '')
-                try:
-                    s3_client.head_object(Bucket=bucket, Key=test_file)
-                except ClientError as e:
-                    error_code = e.response.get('Error', {}).get('Code', '')
-                    if error_code in ('403', 'AccessDenied'):
-                        LOGGER.warning(
-                            "Unauthorized Stream: %s, excluding from catalog. "
-                            "HTTP-Error-Message:'%s'",
-                            table_name,
-                            str(e),
-                        )
-                        return False
-                    # Re-raise non-permission errors
-                    raise
+    for file_key in files_to_check:
+        try:
+            s3_client.head_object(Bucket=bucket, Key=file_key)
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', '')
+            if error_code in ('403', 'AccessDenied'):
+                LOGGER.warning(
+                    "Unauthorized Stream: %s, excluding from catalog. "
+                    "HTTP-Error-Message:'%s'",
+                    table_name,
+                    str(e),
+                )
+                return False
+            # Re-raise non-permission errors
+            raise
     # If no files found for this table, consider it accessible (schema-only)
     return True
 
 
-def _apply_access_checks(bucket, streams, manifests):
+def _apply_access_checks(bucket, streams, manifests, state=None):
     """
     Probe each stream for read access and remove inaccessible streams.
     Raises HeapForbiddenError if no streams are accessible.
@@ -110,7 +102,8 @@ def _apply_access_checks(bucket, streams, manifests):
 
     for stream in streams:
         table_name = stream['tap_stream_id']
-        if _check_stream_access(bucket, table_name, manifests, s3_client=s3_client):
+        if _check_stream_access(
+            bucket, table_name, manifests, s3_client=s3_client, state=state):
             accessible_streams.append(stream)
         else:
             inaccessible_streams.append(table_name)
