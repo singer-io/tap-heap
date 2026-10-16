@@ -15,9 +15,9 @@ LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "role_name"]
 
-def do_discover(config):
+def do_discover(config, state=None):
     LOGGER.info("Starting discover")
-    streams = discover_streams(config['bucket'])
+    streams = discover_streams(config['bucket'], state)
     if not streams:
         raise Exception("No streams found")     # pylint: disable=broad-exception-raised
     catalog = {"streams": streams}
@@ -101,7 +101,7 @@ def main():
             s3.setup_aws_client(args.config)
 
     if args.discover:
-        do_discover(args.config)
+        do_discover(args.config, transform_state(args.state))
     elif args.properties:
         do_sync(args.config, args.properties, transform_state(args.state))
     elif args.catalog:

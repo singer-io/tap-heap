@@ -1,12 +1,20 @@
 from collections import defaultdict
+
+import boto3
+from botocore.exceptions import ClientError
+
 import singer
 from singer import metadata
+
 from tap_heap import manifest
+from tap_heap.exceptions import HeapForbiddenError
 from tap_heap.schema import generate_fake_schema
+from tap_heap.sync import filter_manifests_to_sync, get_files_to_sync
 
 LOGGER = singer.get_logger()
 
-def discover_streams(bucket):
+
+def discover_streams(bucket, state=None):
     streams = []
 
     manifests = manifest.generate_manifests(bucket)
@@ -44,7 +52,75 @@ def discover_streams(bucket):
             'metadata': metadata.to_list(mdata)
         })
 
+    streams = _apply_access_checks(bucket, streams, manifests, state)
+
     return streams
+
+
+def _check_stream_access(bucket, table_name, manifests, s3_client=None, state=None):
+    """
+    Verify read access to files sync may select for a stream in S3.
+    Returns False if any selected file raises a 403 AccessDenied error.
+    """
+    if s3_client is None:
+        s3_client = boto3.client('s3')
+
+    state = state or {}
+    table_manifests, _ = filter_manifests_to_sync(manifests, table_name, state)
+    files_to_check = get_files_to_sync(table_manifests, table_name, state, bucket)
+
+    for file_key in files_to_check:
+        try:
+            s3_client.head_object(Bucket=bucket, Key=file_key)
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', '')
+            if error_code in ('403', 'AccessDenied'):
+                LOGGER.warning(
+                    "Unauthorized Stream: %s, excluding from catalog. "
+                    "HTTP-Error-Message:'%s'",
+                    table_name,
+                    str(e),
+                )
+                return False
+            # Re-raise non-permission errors
+            raise
+    # If no files found for this table, consider it accessible (schema-only)
+    return True
+
+
+def _apply_access_checks(bucket, streams, manifests, state=None):
+    """
+    Probe each stream for read access and remove inaccessible streams.
+    Raises HeapForbiddenError if no streams are accessible.
+    """
+    if not streams:
+        return []
+
+    s3_client = boto3.client('s3')
+    inaccessible_streams = []
+    accessible_streams = []
+
+    for stream in streams:
+        table_name = stream['tap_stream_id']
+        if _check_stream_access(
+            bucket, table_name, manifests, s3_client=s3_client, state=state):
+            accessible_streams.append(stream)
+        else:
+            inaccessible_streams.append(table_name)
+
+    if not accessible_streams:
+        raise HeapForbiddenError(
+            "No streams are accessible. Ensure the credentials "
+            "have read permission for at least one stream."
+        )
+
+    if inaccessible_streams:
+        LOGGER.warning(
+            "These streams have been excluded due to HTTP-Error-Code:403 Forbidden: %s",
+            ", ".join(inaccessible_streams),
+        )
+
+    return accessible_streams
 
 
 def get_key_properties(table_name):
